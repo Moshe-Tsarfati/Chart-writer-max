@@ -214,3 +214,31 @@ body.mode-text #chartEditor{height:auto!important;min-height:0}
   .root-grid-mobile button,.bass-grid-mobile button{font-size:10.5px}
   .diatonic-btn strong{font-size:10px}
 }
+
+
+/* V6: never shrink the whole app to iOS visualViewport while keyboard is open. */
+.app-shell{
+  position:fixed!important;
+  inset:0!important;
+  top:0!important;
+  width:100%!important;
+  height:auto!important;
+  min-height:0!important;
+}
+body.keyboard-visible .app-shell{
+  top:0!important;
+  height:auto!important;
+}
+body.mode-text .workspace{
+  min-height:0!important;
+  height:100%!important;
+  grid-template-rows:minmax(0,1fr) 0!important;
+}
+body.mode-text .editor-panel{
+  min-height:0!important;
+  height:100%!important;
+}
+body.mode-text #chartEditor{
+  min-height:0!important;
+  height:100%!important;
+}

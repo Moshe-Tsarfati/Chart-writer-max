@@ -1490,21 +1490,19 @@
 
   function syncVisibleViewport() {
     const viewport = window.visualViewport;
-    const viewportHeight = Math.max(280, viewport ? viewport.height : window.innerHeight);
+    const viewportHeight = viewport ? viewport.height : window.innerHeight;
     const layoutHeight = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
     const keyboardVisible = state.mode === 'text' &&
       document.activeElement === els.editor &&
-      layoutHeight > 0 && viewportHeight < layoutHeight - 140;
+      layoutHeight > 0 && viewportHeight < layoutHeight - 120;
 
+    // Important for iPhone Safari: do not resize the app to visualViewport.height.
+    // Some iOS versions report a value far smaller than the real area above the
+    // keyboard. Keeping the app at full layout height lets the keyboard simply
+    // cover the lower half while the editor remains large above it.
     document.body.classList.toggle('keyboard-visible', keyboardVisible);
-
-    if (keyboardVisible) {
-      document.documentElement.style.setProperty('--app-height', `${Math.round(viewportHeight)}px`);
-      document.documentElement.style.setProperty('--viewport-top', `${Math.round(viewport?.offsetTop || 0)}px`);
-    } else {
-      document.documentElement.style.removeProperty('--app-height');
-      document.documentElement.style.removeProperty('--viewport-top');
-    }
+    document.documentElement.style.removeProperty('--app-height');
+    document.documentElement.style.removeProperty('--viewport-top');
   }
 
   function bindEvents() {

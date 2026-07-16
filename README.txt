@@ -20,3 +20,5 @@ Changes in this version:
 - Chord insertions do not focus/scroll the readonly editor.
 - Utilities and Diatonic headings removed.
 - Omit/custom and Base quality/display are open by default.
+
+V6 fix: iPhone keyboard no longer shrinks the app using visualViewport.height.
