@@ -146,3 +146,71 @@ body.keyboard-visible.mode-text .editor-panel{grid-template-rows:32px minmax(0,1
 }
 
 body.mode-text .editor-chord-preview{display:none}
+
+/* V5 compact iPhone layout and reliable text viewport */
+html,body{max-width:100%;overflow-x:hidden}
+.app-shell{
+  width:100%;max-width:100%;min-width:0;
+  top:0;
+  height:100dvh;
+}
+body.keyboard-visible .app-shell{
+  top:var(--viewport-top,0px);
+  height:var(--app-height,100dvh);
+}
+.app-header,.workspace,.editor-panel,.chord-panel,.controls-scroll,
+.editor-head,.editor-actions,.segmented{min-width:0;max-width:100%}
+.app-header{
+  grid-template-columns:minmax(0,1fr) 60px 136px 38px;
+  gap:4px;
+  padding-left:6px;padding-right:6px;
+}
+.brand{min-width:0;overflow:hidden;text-overflow:ellipsis;font-size:15px}
+.header-scale-btn{min-width:0;width:60px}
+.segmented{width:136px;min-width:0}
+.mode-btn{flex:1;min-width:0;padding-left:5px;padding-right:5px}
+.editor-head{overflow:hidden}
+.editor-mode-badge{flex:0 0 auto}
+.editor-hint{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.editor-actions{flex:0 0 auto;margin-left:auto}
+.editor-actions .mini{min-width:38px;width:38px;padding:2px}
+.editor-actions [data-editor-action="copy"]{width:56px;min-width:56px}
+#chartEditor{max-width:100%;padding-right:72px}
+.editor-chord-preview{right:8px;bottom:27px;max-width:66px;font-size:14px;opacity:.9}
+
+/* No separate action row: roots and controls already perform insertion. */
+.builder-head{display:none!important}
+
+/* Six visible writing rows in Chord mode, then controls use the rest. */
+body.mode-chord .workspace{grid-template-rows:190px minmax(0,1fr)}
+
+/* Text mode always fills all available space; keyboard-visible height is supplied by JS. */
+body.mode-text .workspace{grid-template-rows:minmax(0,1fr) 0!important}
+body.mode-text .editor-panel{height:auto!important;min-height:0}
+body.mode-text #chartEditor{height:auto!important;min-height:0}
+
+/* Compact note grids: every note remains inside the viewport in two rows. */
+.root-grid-mobile,.bass-grid-mobile{
+  width:100%;
+  grid-template-columns:repeat(6,minmax(0,1fr));
+  gap:4px;
+}
+.root-grid-mobile button,.bass-grid-mobile button{
+  min-width:0;width:100%;min-height:36px;padding:3px 1px;font-size:11px;border-radius:9px;
+}
+.diatonic-grid-mobile{
+  width:100%;
+  grid-template-columns:repeat(7,minmax(0,1fr));
+  gap:4px;
+}
+.diatonic-btn{min-width:0;width:100%;min-height:38px;padding:2px 0;border-radius:9px}
+.diatonic-btn strong{font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+
+@media(max-width:389px){
+  .app-header{grid-template-columns:minmax(0,1fr) 56px 130px 36px;gap:3px;padding-left:4px;padding-right:4px}
+  .brand{font-size:14px}.header-scale-btn{width:56px;font-size:9px}.segmented{width:130px}
+  .editor-actions .mini{width:36px;min-width:36px}.editor-actions [data-editor-action="copy"]{width:52px;min-width:52px}
+  .root-grid-mobile,.bass-grid-mobile,.diatonic-grid-mobile{gap:3px}
+  .root-grid-mobile button,.bass-grid-mobile button{font-size:10.5px}
+  .diatonic-btn strong{font-size:10px}
+}

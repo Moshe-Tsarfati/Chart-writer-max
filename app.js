@@ -535,7 +535,12 @@
       // on the editor then opens the phone keyboard consistently.
       els.editor.blur();
     }
-    requestAnimationFrame(() => window.scrollTo(0, 0));
+    requestAnimationFrame(() => {
+      window.scrollTo(0, 0);
+      syncVisibleViewport();
+      setTimeout(syncVisibleViewport, 180);
+      setTimeout(syncVisibleViewport, 420);
+    });
   }
 
   function noteIndex(note) {
@@ -1485,13 +1490,21 @@
 
   function syncVisibleViewport() {
     const viewport = window.visualViewport;
-    const height = Math.max(280, viewport ? viewport.height : window.innerHeight);
-    const offsetTop = viewport?.offsetTop || 0;
-    document.documentElement.style.setProperty('--app-height', `${Math.round(height)}px`);
-    document.documentElement.style.setProperty('--viewport-top', `${Math.round(offsetTop)}px`);
-    const baseline = Math.max(window.screen?.height || 0, window.innerHeight || 0);
-    const keyboardVisible = state.mode === 'text' && baseline > 0 && height < baseline * 0.72;
+    const viewportHeight = Math.max(280, viewport ? viewport.height : window.innerHeight);
+    const layoutHeight = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+    const keyboardVisible = state.mode === 'text' &&
+      document.activeElement === els.editor &&
+      layoutHeight > 0 && viewportHeight < layoutHeight - 140;
+
     document.body.classList.toggle('keyboard-visible', keyboardVisible);
+
+    if (keyboardVisible) {
+      document.documentElement.style.setProperty('--app-height', `${Math.round(viewportHeight)}px`);
+      document.documentElement.style.setProperty('--viewport-top', `${Math.round(viewport?.offsetTop || 0)}px`);
+    } else {
+      document.documentElement.style.removeProperty('--app-height');
+      document.documentElement.style.removeProperty('--viewport-top');
+    }
   }
 
   function bindEvents() {
@@ -1569,6 +1582,14 @@
     els.editor.addEventListener('click', () => {
       if (!validActiveChord()) unlinkActiveChord();
       if (state.mode === 'text') els.editor.focus({preventScroll:true});
+    });
+    els.editor.addEventListener('focus', () => {
+      setTimeout(syncVisibleViewport, 80);
+      setTimeout(syncVisibleViewport, 320);
+    });
+    els.editor.addEventListener('blur', () => {
+      setTimeout(syncVisibleViewport, 80);
+      setTimeout(syncVisibleViewport, 320);
     });
     els.scaleType.addEventListener('change', () => {
       renderRoots();
