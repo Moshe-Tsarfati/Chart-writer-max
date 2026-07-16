@@ -25,6 +25,7 @@
   const BACKUP_KEY = 'chordChartFast.backups.v1';
   const SETTINGS_KEY = 'chordChartFast.settings.v1';
   const ENHARMONIC_KEY = 'chordChartFast.enharmonicPreferences.v1';
+  const ROOT_ENHARMONIC_KEY = 'chordChartFast.rootEnharmonicPreferences.v1';
   const HANDLE_DB_NAME = 'chordChartFast.fileHandles.v1';
   const HANDLE_STORE_NAME = 'handles';
   const BACKUP_DIRECTORY_KEY = 'backupDirectory';
@@ -566,6 +567,33 @@
     return keyPairs[state.selectedKey].prefer === 'flat' ? chromaticFlat : chromaticSharp;
   }
 
+  function getRootEnharmonicPreferences() {
+    return safeJsonParse(localStorage.getItem(ROOT_ENHARMONIC_KEY), {});
+  }
+
+  function getRootNotes() {
+    const baseNotes = preferredChromatic();
+    const preferences = getRootEnharmonicPreferences();
+    return baseNotes.map((baseNote, pitchIndex) => preferences[String(pitchIndex)] || baseNote);
+  }
+
+  function toggleRootSpelling(pitchIndex) {
+    const notes = getRootNotes();
+    const currentNote = notes[pitchIndex];
+    const alternative = enharmonicAlternative(currentNote);
+    if (!alternative) {
+      showToast(`${currentNote} has no common sharp/flat alternative`, true);
+      return;
+    }
+    const preferences = getRootEnharmonicPreferences();
+    const defaultForPitch = preferredChromatic()[pitchIndex];
+    if (alternative === defaultForPitch) delete preferences[String(pitchIndex)];
+    else preferences[String(pitchIndex)] = alternative;
+    localStorage.setItem(ROOT_ENHARMONIC_KEY, JSON.stringify(preferences));
+    renderRoots();
+    showToast(`Root spelling changed globally to ${alternative}`);
+  }
+
   function scalePreferenceId() {
     return `${state.selectedKey}:${els.scaleType.value}`;
   }
@@ -810,16 +838,52 @@
   }
 
   function renderRoots() {
-    const notes = getSlashBassNotes();
+    const rootNotes = getRootNotes();
+    const bassNotes = getSlashBassNotes();
 
     if (els.rootGrid) {
-      els.rootGrid.innerHTML = notes.map(note =>
-        `<button class="root-btn mobile-root-btn" data-mobile-root="${note}">${formatAccidentals(note)}</button>`
+      els.rootGrid.innerHTML = rootNotes.map((note, pitchIndex) =>
+        `<button class="root-btn mobile-root-btn enharmonic-toggle" data-mobile-root="${note}" data-root-pitch="${pitchIndex}" title="Double tap for minor; hold to switch sharp / flat spelling">${formatAccidentals(note)}</button>`
       ).join('');
-      $$('[data-mobile-root]').forEach(button => {
+      $$('[data-root-pitch]').forEach(button => {
+        const pitchIndex = Number(button.dataset.rootPitch);
         let tapTimer = null;
         let lastTapAt = 0;
-        button.addEventListener('click', () => {
+        let longTimer = null;
+        let longPressed = false;
+        let startX = 0;
+        let startY = 0;
+
+        button.addEventListener('contextmenu', event => {
+          event.preventDefault();
+          toggleRootSpelling(pitchIndex);
+        });
+        button.addEventListener('pointerdown', event => {
+          if (event.pointerType === 'mouse') return;
+          startX = event.clientX;
+          startY = event.clientY;
+          longPressed = false;
+          clearTimeout(longTimer);
+          longTimer = setTimeout(() => {
+            longPressed = true;
+            clearTimeout(tapTimer);
+            lastTapAt = 0;
+            toggleRootSpelling(pitchIndex);
+          }, 600);
+        });
+        const cancelLong = () => { clearTimeout(longTimer); longTimer = null; };
+        button.addEventListener('pointermove', event => {
+          if (Math.hypot(event.clientX - startX, event.clientY - startY) > 10) cancelLong();
+        });
+        button.addEventListener('pointerup', cancelLong);
+        button.addEventListener('pointercancel', cancelLong);
+        button.addEventListener('pointerleave', cancelLong);
+        button.addEventListener('click', event => {
+          if (longPressed) {
+            event.preventDefault();
+            longPressed = false;
+            return;
+          }
           const now = Date.now();
           const isDoubleTap = now - lastTapAt < 310;
           lastTapAt = now;
@@ -839,7 +903,7 @@
       });
     }
 
-    els.slashBassGrid.innerHTML = notes.map((note, pitchIndex) =>
+    els.slashBassGrid.innerHTML = bassNotes.map((note, pitchIndex) =>
       `<button class="root-btn enharmonic-toggle" data-bass="${note}" data-bass-pitch="${pitchIndex}" title="Hold to switch sharp / flat spelling">/${formatAccidentals(note)}</button>`
     ).join('');
     $$('[data-bass-pitch]').forEach(button => {

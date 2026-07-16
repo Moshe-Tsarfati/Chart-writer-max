@@ -242,3 +242,35 @@ body.mode-text #chartEditor{
   min-height:0!important;
   height:100%!important;
 }
+
+/* V7: Text mode keeps the exact same workspace structure as Chord mode.
+   The iPhone keyboard overlays the lower controls instead of collapsing the editor. */
+.mode-text .chord-panel{
+  visibility:visible!important;
+  display:grid!important;
+}
+body.mode-text .workspace{
+  grid-template-rows:minmax(300px,50vh) minmax(0,1fr)!important;
+  height:100%!important;
+}
+body.mode-text .editor-panel{
+  height:auto!important;
+  min-height:0!important;
+}
+body.mode-text #chartEditor{
+  height:100%!important;
+  min-height:0!important;
+}
+body.mode-text .chord-panel.disabled{
+  opacity:.42;
+  pointer-events:none;
+}
+body.mode-text.keyboard-visible .workspace{
+  grid-template-rows:minmax(300px,50vh) minmax(0,1fr)!important;
+}
+@media(max-height:700px){
+  body.mode-text .workspace,
+  body.mode-text.keyboard-visible .workspace{
+    grid-template-rows:minmax(260px,50vh) minmax(0,1fr)!important;
+  }
+}
