@@ -16,12 +16,21 @@
   <div id="app" class="app-shell">
     <header class="app-header">
       <div class="brand">ChordChart <span>Fast</span></div>
+      <button id="keyScaleBtn" class="header-scale-btn" aria-expanded="false">C / Am</button>
       <div class="segmented" aria-label="Entry mode">
         <button id="textModeBtn" class="mode-btn active">Text</button>
         <button id="chordModeBtn" class="mode-btn">Chord</button>
       </div>
       <button id="menuBtn" class="icon-btn" aria-label="Project menu">•••</button>
     </header>
+
+    <div id="keyScalePopover" class="scale-modal hidden" role="dialog" aria-modal="true" aria-label="Key and scale selection">
+      <div class="scale-modal-card">
+        <div class="scale-modal-head"><strong>Key / scale</strong><button id="scaleCloseBtn" class="scale-close" aria-label="Close">×</button></div>
+        <select id="scaleType" aria-label="Scale type"><option value="major">Major</option><option value="naturalMinor">Natural minor</option><option value="harmonicMinor">Harmonic minor</option><option value="melodicMinor">Melodic minor</option></select>
+        <div id="keyGrid" class="key-grid"></div>
+      </div>
+    </div>
 
     <section id="projectDrawer" class="project-drawer hidden">
       <label class="field"><span>Song name</span><input id="projectName" type="text" placeholder="Untitled" autocomplete="off" /></label>
@@ -50,19 +59,12 @@
           </div>
         </div>
         <textarea id="chartEditor" spellcheck="false" aria-label="Chord chart editor" placeholder="Verse 1&#10;Em  G | D  C |"></textarea>
+        <strong id="chordPreview" class="editor-chord-preview">—</strong>
         <div class="editor-foot"><span id="charCount">0 characters</span></div>
       </section>
 
       <aside id="chordPanel" class="chord-panel disabled">
         <div class="builder-head">
-          <div class="preview-block"><span>Current</span><strong id="chordPreview">—</strong></div>
-          <div class="scale-row">
-            <div class="key-picker-wrap">
-              <button id="keyScaleBtn" class="compact-btn" aria-expanded="false">C / Am</button>
-              <div id="keyScalePopover" class="key-scale-popover hidden"><div id="keyGrid" class="key-grid"></div></div>
-            </div>
-            <select id="scaleType" aria-label="Scale type"><option value="major">Major</option><option value="naturalMinor">Natural minor</option><option value="harmonicMinor">Harmonic minor</option><option value="melodicMinor">Melodic minor</option></select>
-          </div>
           <div class="builder-actions"><button id="clearChordBtn">Clear</button><button id="insertChordBtn" class="primary">Insert</button></div>
         </div>
 
@@ -89,17 +91,16 @@
           </section>
 
           <section class="touch-section priority">
-            <div class="section-row solo-toggle"><label class="toggle-label"><input id="seventhToggle" type="checkbox" />7ths</label></div>
+            <input id="seventhToggle" type="checkbox" hidden />
             <div id="diatonicGrid" class="diatonic-grid-mobile"></div>
           </section>
 
           <section class="touch-section priority root-section">
-            <div class="strip-top-action"><button id="mobileMinorBtn" class="minor-next-btn">Minor next</button></div>
             <div id="rootGrid" class="root-grid-mobile"></div>
           </section>
 
           <section class="touch-section priority bass-section">
-            <div class="strip-top-action"><button id="slashBassBtn" class="mini">Clear bass</button></div>
+            <button id="slashBassBtn" hidden></button>
             <div id="slashBassGrid" class="bass-grid-mobile"></div>
           </section>
 

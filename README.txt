@@ -1,26 +1,22 @@
-ChordChart Fast — iPhone PWA
+ChordChart Fast — iPhone PWA text-mode fix
 
-IMPORTANT
-This is an installable web app, not a reliable local-file app. Put this entire folder on an HTTPS host.
+Replace these files in the GitHub Pages repository:
+- index.html
+- styles.css
+- app.js
+- sw.js
 
-Fast free hosting options:
-- GitHub Pages
-- Netlify Drop
-- Cloudflare Pages
+Important: sw.js was versioned and changed to network-first for the main app files so GitHub Pages updates do not remain trapped behind an old offline cache.
 
-Install on iPhone:
-1. Open the HTTPS address in Safari.
-2. Tap Share.
-3. Tap Add to Home Screen.
-4. Launch ChordChart from the Home Screen.
+After GitHub Pages finishes deploying:
+1. Fully close the Home Screen app from the iPhone app switcher.
+2. Open it again.
+3. Tap Text, then tap the editor once to open the keyboard.
 
-Mobile behavior:
-- Text mode expands the editor and opens the iPhone keyboard.
-- Chord mode keeps the editor visible at the top and puts touch chord controls below it.
-- In Chord mode the editor is read-only/inputmode=none so the phone keyboard stays hidden.
-- Tap Text to position the cursor/type; tap Chord to return to touch chord entry.
-- Projects, settings, enharmonic preferences and backups are stored in browser storage.
-- The app also attempts private Origin File System backups under /backups every 60 seconds.
-
-Files:
-index.html, styles.css, app.js, manifest.webmanifest, sw.js, icons/
+Changes in this version:
+- Uses visualViewport height while the iPhone keyboard is open.
+- Text editor fills the whole visible area above the keyboard.
+- Text button arms editing; one editor tap opens the keyboard reliably.
+- Chord insertions do not focus/scroll the readonly editor.
+- Utilities and Diatonic headings removed.
+- Omit/custom and Base quality/display are open by default.

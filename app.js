@@ -9,7 +9,7 @@
     textModeBtn: $('#textModeBtn'), chordModeBtn: $('#chordModeBtn'), modeLabel: $('#modeLabel'), modeHint: $('#modeHint'), editorModeBadge: $('#editorModeBadge'),
     chordPanel: $('#chordPanel'), chordPreview: $('#chordPreview'), qualityGrid: $('#qualityGrid'), rootGrid: $('#rootGrid'), mobileMinorBtn: $('#mobileMinorBtn'),
     extensionGrid: $('#extensionGrid'), alterationGrid: $('#alterationGrid'), utilitiesGrid: $('#utilitiesGrid'), slashBassGrid: $('#slashBassGrid'),
-    keyGrid: $('#keyGrid'), keyScaleBtn: $('#keyScaleBtn'), keyScalePopover: $('#keyScalePopover'), diatonicGrid: $('#diatonicGrid'), scaleType: $('#scaleType'), seventhToggle: $('#seventhToggle'),
+    keyGrid: $('#keyGrid'), keyScaleBtn: $('#keyScaleBtn'), keyScalePopover: $('#keyScalePopover'), scaleCloseBtn: $('#scaleCloseBtn'), diatonicGrid: $('#diatonicGrid'), scaleType: $('#scaleType'), seventhToggle: $('#seventhToggle'),
     symbolStyle: $('#symbolStyle'), superscriptToggle: $('#superscriptToggle'), spaceAfterChordToggle: $('#spaceAfterChordToggle'),
     customSuffix: $('#customSuffix'), customSuffixWrap: $('#customSuffixWrap'), slashBassBtn: $('#slashBassBtn'), customSuffixBtn: $('#customSuffixBtn'),
     insertChordBtn: $('#insertChordBtn'), clearChordBtn: $('#clearChordBtn'), saveTxtBtn: $('#saveTxtBtn'), downloadBackupBtn: $('#downloadBackupBtn'),
@@ -517,8 +517,8 @@
     els.modeLabel.textContent = chord ? 'CHORD' : 'TEXT';
     els.editorModeBadge.textContent = chord ? 'CHORD MODE' : 'TEXT MODE';
     els.modeHint.textContent = chord
-      ? 'Roots insert immediately · Enter adds a line.'
-      : 'Tap Text to type lyrics.';
+      ? 'Tap the editor to type · roots insert immediately.'
+      : 'Tap the editor to type lyrics.';
     els.chordPanel.classList.toggle('disabled', !chord);
     if (!chord) closeKeyScalePopover();
 
@@ -811,13 +811,27 @@
       els.rootGrid.innerHTML = notes.map(note =>
         `<button class="root-btn mobile-root-btn" data-mobile-root="${note}">${formatAccidentals(note)}</button>`
       ).join('');
-      $$('[data-mobile-root]').forEach(button => button.addEventListener('click', () => {
-        const quality = state.pendingMinor ? 'm' : '';
-        startAndInsertChord(button.dataset.mobileRoot, quality);
-        state.pendingMinor = false;
-        state.quality = quality;
-        updateMobileMinorButton();
-      }));
+      $$('[data-mobile-root]').forEach(button => {
+        let tapTimer = null;
+        let lastTapAt = 0;
+        button.addEventListener('click', () => {
+          const now = Date.now();
+          const isDoubleTap = now - lastTapAt < 310;
+          lastTapAt = now;
+          if (isDoubleTap) {
+            clearTimeout(tapTimer);
+            tapTimer = null;
+            lastTapAt = 0;
+            startAndInsertChord(button.dataset.mobileRoot, 'm');
+            return;
+          }
+          clearTimeout(tapTimer);
+          tapTimer = setTimeout(() => {
+            startAndInsertChord(button.dataset.mobileRoot, '');
+            tapTimer = null;
+          }, 315);
+        });
+      });
     }
 
     els.slashBassGrid.innerHTML = notes.map((note, pitchIndex) =>
@@ -885,7 +899,8 @@
     const tonicName = els.scaleType.value === 'major' ? pair.major : pair.minor.replace(/m$/,'');
     const tonicIndex = noteIndex(tonicName);
     const notes = preferredChromatic();
-    const suffixes = els.seventhToggle.checked ? scale.sevenths : scale.triads;
+    const suffixes = [...scale.triads];
+    if (suffixes[6] === 'dim') suffixes[6] = 'm7b5';
     return {
       root: notes[(tonicIndex + scale.intervals[index]) % 12],
       suffix: suffixes[index],
@@ -917,7 +932,7 @@
     els.diatonicGrid.innerHTML = scale.intervals.map((_,index) => {
       const chord = getDiatonicChord(index);
       return `<button class="diatonic-btn enharmonic-toggle" data-diatonic-index="${index}" title="Right-click or hold to switch sharp / flat spelling">` +
-        `<span>${chord.roman}</span><strong>${formatAccidentals(chord.root + chord.suffix)}</strong>` +
+        `<strong>${formatAccidentals(chord.root + chord.suffix)}</strong>` +
       `</button>`;
     }).join('');
     $$('[data-diatonic-index]').forEach(button => {
@@ -1470,10 +1485,13 @@
 
   function syncVisibleViewport() {
     const viewport = window.visualViewport;
-    const height = viewport ? viewport.height : window.innerHeight;
+    const height = Math.max(280, viewport ? viewport.height : window.innerHeight);
+    const offsetTop = viewport?.offsetTop || 0;
     document.documentElement.style.setProperty('--app-height', `${Math.round(height)}px`);
-    document.documentElement.style.setProperty('--viewport-top', `${Math.round(viewport?.offsetTop || 0)}px`);
-    window.scrollTo(0, 0);
+    document.documentElement.style.setProperty('--viewport-top', `${Math.round(offsetTop)}px`);
+    const baseline = Math.max(window.screen?.height || 0, window.innerHeight || 0);
+    const keyboardVisible = state.mode === 'text' && baseline > 0 && height < baseline * 0.72;
+    document.body.classList.toggle('keyboard-visible', keyboardVisible);
   }
 
   function bindEvents() {
@@ -1501,6 +1519,10 @@
       event.stopPropagation();
       toggleKeyScalePopover();
     });
+    if (els.scaleCloseBtn) els.scaleCloseBtn.addEventListener('click', closeKeyScalePopover);
+    els.keyScalePopover.addEventListener('click', event => {
+      if (event.target === els.keyScalePopover) closeKeyScalePopover();
+    });
     els.projectSelect.addEventListener('change', event => event.target.value && loadProject(event.target.value));
     els.projectName.addEventListener('input', () => {
       markDirty();
@@ -1526,25 +1548,34 @@
       clearTimeout(pushHistory.timer);
       pushHistory.timer = setTimeout(pushHistory, 250);
     });
-    els.editor.addEventListener('pointerdown', () => {
-      if (state.mode === 'text') {
+    els.editor.addEventListener('pointerdown', event => {
+      if (state.mode === 'chord') {
+        event.preventDefault();
+        const range = document.caretRangeFromPoint?.(event.clientX, event.clientY);
+        setMode('text');
         els.editor.readOnly = false;
         els.editor.inputMode = 'text';
         els.editor.setAttribute('aria-readonly', 'false');
+        if (range && range.startContainer === els.editor.firstChild) {
+          els.editor.setSelectionRange(range.startOffset, range.startOffset);
+        }
+        els.editor.focus({preventScroll:true});
+        return;
       }
+      els.editor.readOnly = false;
+      els.editor.inputMode = 'text';
+      els.editor.setAttribute('aria-readonly', 'false');
     });
     els.editor.addEventListener('click', () => {
       if (!validActiveChord()) unlinkActiveChord();
-      if (state.mode === 'text') {
-        els.editor.focus({preventScroll:true});
-      }
+      if (state.mode === 'text') els.editor.focus({preventScroll:true});
     });
     els.scaleType.addEventListener('change', () => {
       renderRoots();
       renderDiatonic();
       saveGlobalSettings();
     });
-    els.seventhToggle.addEventListener('change', () => {
+    if (els.seventhToggle) els.seventhToggle.addEventListener('change', () => {
       renderDiatonic();
       saveGlobalSettings();
     });
@@ -1556,7 +1587,7 @@
       saveGlobalSettings();
     }));
     $$('[data-omit]').forEach(button => button.addEventListener('click', () => toggleArrayValue(state.omissions, button.dataset.omit)));
-    els.slashBassBtn.addEventListener('click', () => {
+    if (els.slashBassBtn) els.slashBassBtn.addEventListener('click', () => {
       state.slashBass = '';
       state.awaitingSlashBass = false;
       updateChordAndActiveText();
@@ -1600,7 +1631,7 @@
     });
 
     document.addEventListener('click', event => {
-      if (!event.target.closest('.key-picker-wrap')) closeKeyScalePopover();
+      if (!els.keyScalePopover.classList.contains('hidden') && !event.target.closest('.scale-modal-card') && event.target !== els.keyScaleBtn) closeKeyScalePopover();
     });
 
     document.addEventListener('keydown', event => {

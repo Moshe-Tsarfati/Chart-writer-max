@@ -63,3 +63,86 @@ body.mode-chord .workspace{grid-template-rows:minmax(132px,33dvh) minmax(0,1fr)}
 @supports not (height:100dvh){.app-shell{height:var(--app-height,100vh)}}
 
 body.mode-text .editor-panel{height:100%;min-height:0}body.mode-text #chartEditor{min-height:0;height:100%}
+
+/* V4 iPhone viewport and compact-header patch */
+.app-shell{
+  position:fixed;
+  left:0;
+  right:0;
+  top:var(--viewport-top,0px);
+  height:var(--app-height,100dvh);
+  min-height:0;
+}
+.app-header{
+  grid-template-columns:minmax(112px,1fr) 64px auto 40px;
+  align-items:end;
+  min-height:calc(46px + var(--safe-top));
+  padding:calc(3px + var(--safe-top)) 7px 3px;
+  gap:5px;
+}
+.brand{font-size:16px;white-space:nowrap}
+.header-scale-btn{height:32px;min-height:32px;padding:3px 5px;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.segmented{height:34px;padding:2px;border-radius:10px}
+.mode-btn{height:30px;min-height:30px;padding:2px 9px;border-radius:8px}
+.icon-btn{height:34px;min-height:34px}
+.editor-panel{position:relative}
+.editor-actions .mini{min-width:36px;min-height:32px;font-size:14px;padding:2px 8px}
+.editor-actions [data-editor-action="copy"]{font-size:12px;min-width:52px}
+.editor-chord-preview{
+  position:absolute;
+  right:9px;
+  bottom:24px;
+  z-index:3;
+  max-width:46%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  pointer-events:none;
+  font-size:16px;
+  line-height:1;
+  opacity:.9;
+  text-align:right;
+}
+.builder-head{display:flex;justify-content:flex-end;padding:4px 6px;min-height:40px}
+.builder-actions button{min-height:32px}
+.scale-row,.preview-block,.key-picker-wrap{display:none!important}
+.scale-modal{
+  position:fixed;
+  inset:0;
+  z-index:180;
+  display:grid;
+  place-items:center;
+  padding:18px;
+  background:rgba(2,6,12,.72);
+  backdrop-filter:blur(5px);
+}
+.scale-modal-card{
+  width:min(370px,94vw);
+  max-height:min(620px,84vh);
+  overflow:auto;
+  padding:12px;
+  border:1px solid var(--line);
+  border-radius:16px;
+  background:#101823;
+  box-shadow:0 24px 80px #000d;
+}
+.scale-modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.scale-close{width:34px;min-width:34px;height:34px;min-height:34px;padding:0;font-size:22px;line-height:1}
+.scale-modal-card>select{width:100%;height:38px;margin-bottom:10px;border:1px solid var(--line);border-radius:9px;background:#0a1018;color:var(--text);padding:6px 9px}
+.key-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.key-btn{min-height:38px;font-size:11px}
+.diatonic-btn{grid-template-rows:1fr;min-height:42px}
+.diatonic-btn span{display:none!important}
+.diatonic-btn strong{font-size:12px}
+.strip-top-action,.minor-next-btn{display:none!important}
+body.mode-text .workspace{grid-template-rows:minmax(0,1fr) 0}
+body.mode-text .editor-panel{height:100%;min-height:0}
+body.mode-text #chartEditor{height:100%;min-height:0}
+body.keyboard-visible.mode-text .app-header{min-height:calc(42px + var(--safe-top));padding-top:calc(2px + var(--safe-top))}
+body.keyboard-visible.mode-text .editor-panel{grid-template-rows:32px minmax(0,1fr) 22px}
+@media(max-width:389px){
+  .app-header{grid-template-columns:minmax(108px,1fr) 58px auto 38px;gap:4px}
+  .brand{font-size:15px}.header-scale-btn{font-size:9.5px}.mode-btn{padding:2px 7px}
+}
+
+body.mode-text .editor-chord-preview{display:none}
