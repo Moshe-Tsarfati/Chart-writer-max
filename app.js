@@ -1,6 +1,10 @@
 (() => {
   'use strict';
 
+  const APP_VERSION = 'V8';
+  let stableAppHeight = 0;
+  let stableOrientation = window.innerWidth > window.innerHeight ? 'landscape' : 'portrait';
+
   const $ = (selector) => document.querySelector(selector);
   const $$ = (selector) => [...document.querySelectorAll(selector)];
 
@@ -1049,10 +1053,29 @@
     return true;
   }
 
+  function ensureEditorCaretVisible() {
+    const cursor = els.editor.selectionStart ?? 0;
+    const before = els.editor.value.slice(0, cursor);
+    const lineIndex = before.split('\n').length - 1;
+    const computed = getComputedStyle(els.editor);
+    const lineHeight = parseFloat(computed.lineHeight) || 22;
+    const paddingTop = parseFloat(computed.paddingTop) || 0;
+    const caretTop = paddingTop + (lineIndex * lineHeight);
+    const visibleTop = els.editor.scrollTop;
+    const visibleBottom = visibleTop + els.editor.clientHeight;
+    const margin = lineHeight * 1.5;
+    if (caretTop + margin > visibleBottom) {
+      els.editor.scrollTop = Math.max(0, caretTop - els.editor.clientHeight + (lineHeight * 2.2));
+    } else if (caretTop < visibleTop) {
+      els.editor.scrollTop = Math.max(0, caretTop - lineHeight);
+    }
+  }
+
   function commitEditorValue(value, cursorStart, cursorEnd=cursorStart) {
     els.editor.value = value;
     els.editor.setSelectionRange(cursorStart, cursorEnd);
     if (state.mode === 'text') els.editor.focus({preventScroll:true});
+    requestAnimationFrame(ensureEditorCaretVisible);
     pushHistory();
     updateCounts();
     markDirty();
@@ -1528,6 +1551,7 @@
       els.editor.value = state.history[state.historyIndex];
       unlinkActiveChord();
       updateCounts();
+      requestAnimationFrame(ensureEditorCaretVisible);
       markDirty();
     }
   }
@@ -1552,21 +1576,31 @@
     saveTimer = setTimeout(() => saveCurrentProject(), 650);
   }
 
-  function syncVisibleViewport() {
+  function syncVisibleViewport({force=false}={}) {
     const viewport = window.visualViewport;
-    const viewportHeight = viewport ? viewport.height : window.innerHeight;
-    const layoutHeight = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
-    const keyboardVisible = state.mode === 'text' &&
-      document.activeElement === els.editor &&
-      layoutHeight > 0 && viewportHeight < layoutHeight - 120;
+    const orientation = window.innerWidth > window.innerHeight ? 'landscape' : 'portrait';
+    const keyboardVisible = state.mode === 'text' && document.activeElement === els.editor && viewport &&
+      viewport.height < (stableAppHeight || window.innerHeight) - 120;
 
-    // Important for iPhone Safari: do not resize the app to visualViewport.height.
-    // Some iOS versions report a value far smaller than the real area above the
-    // keyboard. Keeping the app at full layout height lets the keyboard simply
-    // cover the lower half while the editor remains large above it.
-    document.body.classList.toggle('keyboard-visible', keyboardVisible);
-    document.documentElement.style.removeProperty('--app-height');
-    document.documentElement.style.removeProperty('--viewport-top');
+    const layoutCandidate = Math.max(
+      window.innerHeight || 0,
+      document.documentElement.clientHeight || 0,
+      viewport ? viewport.height + viewport.offsetTop : 0
+    );
+
+    // Capture the largest non-keyboard viewport and never let keyboard opening
+    // reduce the app's coordinate system. Recalculate only on orientation change
+    // or when a genuinely larger viewport becomes available.
+    if (force || orientation !== stableOrientation || layoutCandidate > stableAppHeight + 40 || stableAppHeight < 300) {
+      stableOrientation = orientation;
+      stableAppHeight = layoutCandidate;
+    }
+
+    const textHeight = Math.round(stableAppHeight * (orientation === 'landscape' ? 0.56 : 0.50));
+    document.documentElement.style.setProperty('--stable-app-height', `${stableAppHeight}px`);
+    document.documentElement.style.setProperty('--text-editor-height', `${textHeight}px`);
+    document.body.classList.toggle('keyboard-visible', Boolean(keyboardVisible));
+    requestAnimationFrame(ensureEditorCaretVisible);
   }
 
   function bindEvents() {
@@ -1627,7 +1661,8 @@
       if (state.mode === 'chord') {
         event.preventDefault();
         const range = document.caretRangeFromPoint?.(event.clientX, event.clientY);
-        setMode('text');
+        syncVisibleViewport({force:true});
+    setMode('text');
         els.editor.readOnly = false;
         els.editor.inputMode = 'text';
         els.editor.setAttribute('aria-readonly', 'false');

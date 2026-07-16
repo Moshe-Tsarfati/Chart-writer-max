@@ -274,3 +274,59 @@ body.mode-text.keyboard-visible .workspace{
     grid-template-rows:minmax(260px,50vh) minmax(0,1fr)!important;
   }
 }
+
+/* V8 architecture reset: stable app height, mode-specific editor pane only. */
+:root{
+  --stable-app-height:100dvh;
+  --text-editor-height:50dvh;
+  --chord-editor-height:190px;
+}
+html,body{height:100%;overflow:hidden}
+.app-shell{
+  position:fixed!important;
+  inset:0!important;
+  width:100%!important;
+  height:var(--stable-app-height)!important;
+  min-height:var(--stable-app-height)!important;
+  max-height:var(--stable-app-height)!important;
+  overflow:hidden!important;
+}
+.workspace{
+  height:100%!important;
+  min-height:0!important;
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  overflow:hidden!important;
+}
+body.mode-chord .workspace{
+  grid-template-rows:var(--chord-editor-height) minmax(0,1fr)!important;
+}
+body.mode-text .workspace,
+body.mode-text.keyboard-visible .workspace{
+  grid-template-rows:var(--text-editor-height) minmax(0,1fr)!important;
+}
+body.mode-text .editor-panel,
+body.mode-chord .editor-panel{
+  height:auto!important;
+  min-height:0!important;
+}
+body.mode-text #chartEditor,
+body.mode-chord #chartEditor{
+  height:100%!important;
+  min-height:0!important;
+  overflow-y:auto!important;
+}
+body.mode-text .chord-panel{
+  visibility:visible!important;
+  display:grid!important;
+}
+body.mode-text .chord-panel.disabled{opacity:.42;pointer-events:none}
+body.keyboard-visible .app-shell{
+  height:var(--stable-app-height)!important;
+  min-height:var(--stable-app-height)!important;
+  max-height:var(--stable-app-height)!important;
+}
+.brand{display:flex;align-items:baseline;gap:4px;min-width:0}
+.version-badge{font-size:8px;line-height:1;padding:2px 4px;border:1px solid var(--line);border-radius:5px;color:var(--muted);font-weight:800;letter-spacing:.04em;flex:0 0 auto}
+.builder-head{display:none!important}
+#chartEditor{scroll-behavior:smooth}
