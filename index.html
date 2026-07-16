@@ -68,7 +68,6 @@
 
         <div class="controls-scroll">
           <section class="touch-section priority utilities-section">
-            <h2>Utilities</h2>
             <div id="utilitiesLine" class="utility-line">
               <button id="mobileBarBtn">|</button>
               <button id="mobileNewLineBtn">↵</button>
@@ -90,7 +89,7 @@
           </section>
 
           <section class="touch-section priority">
-            <div class="section-row"><h2>Diatonic</h2><label class="toggle-label"><input id="seventhToggle" type="checkbox" />7ths</label></div>
+            <div class="section-row solo-toggle"><label class="toggle-label"><input id="seventhToggle" type="checkbox" />7ths</label></div>
             <div id="diatonicGrid" class="diatonic-grid-mobile"></div>
           </section>
 
@@ -114,13 +113,13 @@
             <div id="alterationGrid" class="alteration-strip"></div>
           </details>
 
-          <details class="advanced">
+          <details class="advanced" open>
             <summary>Omit / custom</summary>
             <div class="omit-strip"><button data-omit="no3">no3</button><button data-omit="no5">no5</button><button data-omit="no7">no7</button><button id="customSuffixBtn">Custom…</button></div>
             <label id="customSuffixWrap" class="field hidden"><span>Custom suffix</span><input id="customSuffix" type="text" placeholder="e.g. (add♭6)" /></label>
           </details>
 
-          <details class="advanced">
+          <details class="advanced" open>
             <summary>Base quality and display</summary>
             <div id="qualityGrid" class="quality-grid"></div>
             <div class="settings-row">

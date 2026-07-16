@@ -529,10 +529,13 @@
     els.editor.setAttribute('aria-readonly', chord ? 'true' : 'false');
     if (chord) {
       els.editor.blur();
-      requestAnimationFrame(() => els.editor.focus({preventScroll:true}));
     } else {
-      els.editor.focus({preventScroll:true});
+      // On iPhone, changing from readOnly to editable and focusing in the same
+      // button event is unreliable. Text mode arms the editor; one direct tap
+      // on the editor then opens the phone keyboard consistently.
+      els.editor.blur();
     }
+    requestAnimationFrame(() => window.scrollTo(0, 0));
   }
 
   function noteIndex(note) {
@@ -965,7 +968,7 @@
   function commitEditorValue(value, cursorStart, cursorEnd=cursorStart) {
     els.editor.value = value;
     els.editor.setSelectionRange(cursorStart, cursorEnd);
-    els.editor.focus();
+    if (state.mode === 'text') els.editor.focus({preventScroll:true});
     pushHistory();
     updateCounts();
     markDirty();
@@ -1465,6 +1468,14 @@
     saveTimer = setTimeout(() => saveCurrentProject(), 650);
   }
 
+  function syncVisibleViewport() {
+    const viewport = window.visualViewport;
+    const height = viewport ? viewport.height : window.innerHeight;
+    document.documentElement.style.setProperty('--app-height', `${Math.round(height)}px`);
+    document.documentElement.style.setProperty('--viewport-top', `${Math.round(viewport?.offsetTop || 0)}px`);
+    window.scrollTo(0, 0);
+  }
+
   function bindEvents() {
     els.textModeBtn.addEventListener('click', () => setMode('text'));
     els.chordModeBtn.addEventListener('click', () => setMode('chord'));
@@ -1515,11 +1526,17 @@
       clearTimeout(pushHistory.timer);
       pushHistory.timer = setTimeout(pushHistory, 250);
     });
+    els.editor.addEventListener('pointerdown', () => {
+      if (state.mode === 'text') {
+        els.editor.readOnly = false;
+        els.editor.inputMode = 'text';
+        els.editor.setAttribute('aria-readonly', 'false');
+      }
+    });
     els.editor.addEventListener('click', () => {
       if (!validActiveChord()) unlinkActiveChord();
-      if (state.mode === 'chord') {
-        setMode('text');
-        showToast('Text mode — phone keyboard enabled');
+      if (state.mode === 'text') {
+        els.editor.focus({preventScroll:true});
       }
     });
     els.scaleType.addEventListener('change', () => {
@@ -1620,9 +1637,16 @@
       state.xUsed = false;
     });
     window.addEventListener('beforeunload', () => saveCurrentProject());
+    window.addEventListener('resize', syncVisibleViewport);
+    window.addEventListener('orientationchange', () => setTimeout(syncVisibleViewport, 120));
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', syncVisibleViewport);
+      window.visualViewport.addEventListener('scroll', syncVisibleViewport);
+    }
   }
 
   async function initialize() {
+    syncVisibleViewport();
     renderKeys();
     renderRoots();
     updateMobileMinorButton();
