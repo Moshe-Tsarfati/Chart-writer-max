@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const APP_VERSION = 'V9';
+  const APP_VERSION = 'V10';
   let stableAppHeight = 0;
   let stableOrientation = window.innerWidth > window.innerHeight ? 'landscape' : 'portrait';
 
@@ -21,7 +21,7 @@
     backupFolderHelp: $('#backupFolderHelp'), newProjectBtn: $('#newProjectBtn'), importBtn: $('#importBtn'), importInput: $('#importInput'),
     saveStatus: $('#saveStatus'), backupStatus: $('#backupStatus'), charCount: $('#charCount'), shortcutsBtn: $('#shortcutsBtn'), shortcutsDialog: $('#shortcutsDialog'),
     mobileNewLineBtn: $('#mobileNewLineBtn'), mobileBarBtn: $('#mobileBarBtn'), mobileDoubleBtn: $('#mobileDoubleBtn'), mobileRepeatBtn: $('#mobileRepeatBtn'), mobileBeatBtn: $('#mobileBeatBtn'), mobileSyncBtn: $('#mobileSyncBtn'),
-    toast: $('#toast')
+    forceGSharpMinorToggle: $('#forceGSharpMinorToggle'), toast: $('#toast')
   };
 
   const PROJECTS_KEY = 'chordChartFast.projects.v1';
@@ -30,6 +30,7 @@
   const SETTINGS_KEY = 'chordChartFast.settings.v1';
   const ENHARMONIC_KEY = 'chordChartFast.enharmonicPreferences.v1';
   const ROOT_ENHARMONIC_KEY = 'chordChartFast.rootEnharmonicPreferences.v1';
+  const FORCE_GSHARP_MINOR_KEY = 'chordChartFast.forceGSharpMinor.v1';
   const HANDLE_DB_NAME = 'chordChartFast.fileHandles.v1';
   const HANDLE_STORE_NAME = 'handles';
   const BACKUP_DIRECTORY_KEY = 'backupDirectory';
@@ -582,49 +583,39 @@
   }
 
   function toggleRootSpelling(pitchIndex) {
-    const notes = getRootNotes();
-    const currentNote = notes[pitchIndex];
+    toggleGlobalPitchSpelling(pitchIndex, 'Root');
+  }
+
+  function getGlobalPitchNotes() {
+    const baseNotes = preferredChromatic();
+    const preferences = getRootEnharmonicPreferences();
+    return baseNotes.map((baseNote, pitchIndex) => preferences[String(pitchIndex)] || baseNote);
+  }
+
+  function getGlobalPreferredNote(note) {
+    const pitchIndex = noteIndex(note);
+    if (pitchIndex < 0) return note;
+    return getRootEnharmonicPreferences()[String(pitchIndex)] || note;
+  }
+
+  function toggleGlobalPitchSpelling(pitchIndex, sourceLabel='Note') {
+    const currentNote = getGlobalPitchNotes()[pitchIndex];
     const alternative = enharmonicAlternative(currentNote);
     if (!alternative) {
       showToast(`${currentNote} has no common sharp/flat alternative`, true);
       return;
     }
     const preferences = getRootEnharmonicPreferences();
-    const defaultForPitch = preferredChromatic()[pitchIndex];
-    if (alternative === defaultForPitch) delete preferences[String(pitchIndex)];
-    else preferences[String(pitchIndex)] = alternative;
+    // Always store the chosen spelling explicitly so it stays identical in every key and scale.
+    preferences[String(pitchIndex)] = alternative;
     localStorage.setItem(ROOT_ENHARMONIC_KEY, JSON.stringify(preferences));
     renderRoots();
-    showToast(`Root spelling changed globally to ${alternative}`);
+    renderDiatonic();
+    showToast(`${sourceLabel} spelling changed globally to ${alternative}`);
   }
 
-  function scalePreferenceId() {
-    return `${state.selectedKey}:${els.scaleType.value}`;
-  }
-
-  function getEnharmonicPreferences() {
-    return safeJsonParse(localStorage.getItem(ENHARMONIC_KEY), {});
-  }
-
-  function getCurrentEnharmonicPreferences() {
-    const all = getEnharmonicPreferences();
-    return all[scalePreferenceId()] || {diatonic:{}, bass:{}};
-  }
-
-  function saveEnharmonicOverride(group, key, note, baseNote) {
-    const all = getEnharmonicPreferences();
-    const id = scalePreferenceId();
-    const current = all[id] || {diatonic:{}, bass:{}};
-    current.diatonic ||= {};
-    current.bass ||= {};
-
-    if (!note || note === baseNote) delete current[group][key];
-    else current[group][key] = note;
-
-    if (!Object.keys(current.diatonic).length && !Object.keys(current.bass).length) delete all[id];
-    else all[id] = current;
-
-    localStorage.setItem(ENHARMONIC_KEY, JSON.stringify(all));
+  function forceGSharpMinorEnabled() {
+    return localStorage.getItem(FORCE_GSHARP_MINOR_KEY) !== 'false';
   }
 
   function enharmonicAlternative(note) {
@@ -823,22 +814,11 @@
   }
 
   function getSlashBassNotes() {
-    const baseNotes = preferredChromatic();
-    const preferences = getCurrentEnharmonicPreferences();
-    return baseNotes.map((baseNote, pitchIndex) => preferences.bass?.[String(pitchIndex)] || baseNote);
+    return getGlobalPitchNotes();
   }
 
   function toggleSlashBassSpelling(pitchIndex) {
-    const baseNote = preferredChromatic()[pitchIndex];
-    const currentNote = getSlashBassNotes()[pitchIndex];
-    const alternative = enharmonicAlternative(currentNote);
-    if (!alternative) {
-      showToast(`${currentNote} has no common sharp/flat alternative`, true);
-      return;
-    }
-    saveEnharmonicOverride('bass', String(pitchIndex), alternative, baseNote);
-    renderRoots();
-    showToast(`Bass spelling changed to ${alternative} for this key/scale`);
+    toggleGlobalPitchSpelling(pitchIndex, 'Bass');
   }
 
   function renderRoots() {
@@ -895,7 +875,8 @@
             clearTimeout(tapTimer);
             tapTimer = null;
             lastTapAt = 0;
-            startAndInsertChord(button.dataset.mobileRoot, 'm');
+            const minorRoot = forceGSharpMinorEnabled() && pitchIndex === 8 ? 'G#' : button.dataset.mobileRoot;
+            startAndInsertChord(minorRoot, 'm');
             return;
           }
           clearTimeout(tapTimer);
@@ -983,21 +964,13 @@
 
   function getDiatonicChord(index) {
     const chord = getBaseDiatonicChord(index);
-    const preferences = getCurrentEnharmonicPreferences();
-    return {...chord, root:preferences.diatonic?.[String(index)] || chord.root};
+    return {...chord, root:getGlobalPreferredNote(chord.root)};
   }
 
   function toggleDiatonicSpelling(index) {
-    const baseChord = getBaseDiatonicChord(index);
-    const currentChord = getDiatonicChord(index);
-    const alternative = enharmonicAlternative(currentChord.root);
-    if (!alternative) {
-      showToast(`${currentChord.root} has no common sharp/flat alternative`, true);
-      return;
-    }
-    saveEnharmonicOverride('diatonic', String(index), alternative, baseChord.root);
-    renderDiatonic();
-    showToast(`Diatonic spelling changed to ${alternative} for this key/scale`);
+    const chord = getBaseDiatonicChord(index);
+    const pitchIndex = noteIndex(chord.root);
+    toggleGlobalPitchSpelling(pitchIndex, 'Diatonic');
   }
 
   function renderDiatonic() {
@@ -1688,6 +1661,13 @@
       setTimeout(syncVisibleViewport, 80);
       setTimeout(syncVisibleViewport, 320);
     });
+    if (els.forceGSharpMinorToggle) {
+      els.forceGSharpMinorToggle.checked = forceGSharpMinorEnabled();
+      els.forceGSharpMinorToggle.addEventListener('change', () => {
+        localStorage.setItem(FORCE_GSHARP_MINOR_KEY, String(els.forceGSharpMinorToggle.checked));
+        showToast(els.forceGSharpMinorToggle.checked ? 'G#m exception enabled' : 'G#m exception disabled');
+      });
+    }
     els.scaleType.addEventListener('change', () => {
       renderRoots();
       renderDiatonic();

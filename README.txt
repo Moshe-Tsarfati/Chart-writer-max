@@ -27,3 +27,5 @@ V9 visual update
 ----------------
 - Warm, distinct colors for bar, line, roots, bass notes, and diatonic chords.
 - Utilities use two rows with horizontal scrolling when needed.
+
+V10: LTR editor, global enharmonic spelling, optional G#m double-tap exception.
