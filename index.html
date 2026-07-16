@@ -42,7 +42,7 @@
       <section class="editor-panel">
         <div class="editor-head">
           <span id="editorModeBadge" class="editor-mode-badge">TEXT MODE</span>
-          <span id="modeLabel" class="sr-only">TEXT</span><span id="modeHint" class="editor-hint">Tap and type lyrics</span>
+          <span id="modeLabel" class="sr-only">TEXT</span><span id="modeHint" class="editor-hint">Tap Text to type</span>
           <div class="editor-actions">
             <button data-editor-action="undo" class="mini">↶</button>
             <button data-editor-action="redo" class="mini">↷</button>
@@ -50,7 +50,7 @@
           </div>
         </div>
         <textarea id="chartEditor" spellcheck="false" aria-label="Chord chart editor" placeholder="Verse 1&#10;Em  G | D  C |"></textarea>
-        <div class="editor-foot"><span id="charCount">0 characters</span><span class="caret-help">Tap Text to type · Chord to use controls</span></div>
+        <div class="editor-foot"><span id="charCount">0 characters</span></div>
       </section>
 
       <aside id="chordPanel" class="chord-panel disabled">
@@ -67,38 +67,46 @@
         </div>
 
         <div class="controls-scroll">
-          <section class="touch-section priority">
-            <div class="section-row"><h2>Root</h2><button id="mobileMinorBtn" class="minor-next-btn">Minor next</button></div>
-            <div id="rootGrid" class="root-strip"></div>
+          <section class="touch-section priority utilities-section">
+            <h2>Utilities</h2>
+            <div id="utilitiesLine" class="utility-line">
+              <button id="mobileBarBtn">|</button>
+              <button id="mobileNewLineBtn">↵</button>
+              <button id="mobileBeatBtn">'</button>
+              <button class="utility-btn" data-utility="tripleQuote">'''</button>
+              <button class="utility-btn" data-utility="time" data-value="2/4">2/4</button>
+              <button class="utility-btn" data-utility="time" data-value="4/4">4/4</button>
+              <button class="utility-btn" data-utility="repeat" data-value="2">X2</button>
+              <button class="utility-btn" data-utility="repeat" data-value="4">X4</button>
+              <button id="mobileDoubleBtn">||</button>
+              <button id="mobileRepeatBtn">:||</button>
+              <button id="mobileSyncBtn">*</button>
+              <button class="utility-btn" data-utility="repeat" data-value="3">X3</button>
+              <button class="utility-btn" data-utility="time" data-value="3/4">3/4</button>
+              <button class="utility-btn" data-utility="time" data-value="5/4">5/4</button>
+              <button class="utility-btn" data-utility="time" data-value="3/8">3/8</button>
+              <button class="utility-btn" data-utility="time" data-value="6/8">6/8</button>
+            </div>
           </section>
 
           <section class="touch-section priority">
             <div class="section-row"><h2>Diatonic</h2><label class="toggle-label"><input id="seventhToggle" type="checkbox" />7ths</label></div>
-            <div id="diatonicGrid" class="diatonic-strip"></div>
-            <small>Long-press a chord to toggle ♯/♭ spelling.</small>
+            <div id="diatonicGrid" class="diatonic-grid-mobile"></div>
           </section>
 
-          <section class="touch-section priority">
-            <div class="section-row"><h2>Bass</h2><button id="slashBassBtn" class="mini">Clear bass</button></div>
-            <div id="slashBassGrid" class="bass-strip"></div>
-            <small>Tap a bass note; long-press toggles ♯/♭.</small>
+          <section class="touch-section priority root-section">
+            <div class="strip-top-action"><button id="mobileMinorBtn" class="minor-next-btn">Minor next</button></div>
+            <div id="rootGrid" class="root-grid-mobile"></div>
+          </section>
+
+          <section class="touch-section priority bass-section">
+            <div class="strip-top-action"><button id="slashBassBtn" class="mini">Clear bass</button></div>
+            <div id="slashBassGrid" class="bass-grid-mobile"></div>
           </section>
 
           <section class="touch-section priority">
             <h2>Chord type / extension</h2>
             <div class="horizontal-menu-shell"><div id="extensionGrid" class="extension-grid"></div></div>
-          </section>
-
-          <section class="touch-section priority">
-            <h2>Utilities</h2>
-            <div id="utilitiesGrid" class="utility-strip">
-              <button class="utility-btn" data-utility="tripleQuote">'''</button>
-              <button class="utility-btn" data-utility="repeat" data-value="2">X2</button><button class="utility-btn" data-utility="repeat" data-value="3">X3</button><button class="utility-btn" data-utility="repeat" data-value="4">X4</button>
-              <button class="utility-btn" data-utility="time" data-value="4/4">4/4</button><button class="utility-btn" data-utility="time" data-value="2/4">2/4</button><button class="utility-btn" data-utility="time" data-value="3/4">3/4</button><button class="utility-btn" data-utility="time" data-value="5/4">5/4</button><button class="utility-btn" data-utility="time" data-value="3/8">3/8</button><button class="utility-btn" data-utility="time" data-value="6/8">6/8</button>
-            </div>
-            <div class="quick-strip">
-              <button id="mobileNewLineBtn">↵ Line</button><button id="mobileBarBtn">| Bar</button><button id="mobileDoubleBtn">||</button><button id="mobileRepeatBtn">:||</button><button id="mobileBeatBtn">'</button><button id="mobileSyncBtn">*</button>
-            </div>
           </section>
 
           <details class="advanced" open>

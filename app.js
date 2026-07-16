@@ -517,8 +517,8 @@
     els.modeLabel.textContent = chord ? 'CHORD' : 'TEXT';
     els.editorModeBadge.textContent = chord ? 'CHORD MODE' : 'TEXT MODE';
     els.modeHint.textContent = chord
-      ? 'Roots insert immediately · Enter adds a line · Shift+Enter inserts/finishes · ` switches mode.'
-      : 'Type lyrics normally. ` switches mode.';
+      ? 'Roots insert immediately · Enter adds a line.'
+      : 'Tap Text to type lyrics.';
     els.chordPanel.classList.toggle('disabled', !chord);
     if (!chord) closeKeyScalePopover();
 
@@ -818,7 +818,7 @@
     }
 
     els.slashBassGrid.innerHTML = notes.map((note, pitchIndex) =>
-      `<button class="root-btn enharmonic-toggle" data-bass="${note}" data-bass-pitch="${pitchIndex}" title="Hold to switch sharp / flat spelling">${formatAccidentals(note)}</button>`
+      `<button class="root-btn enharmonic-toggle" data-bass="${note}" data-bass-pitch="${pitchIndex}" title="Hold to switch sharp / flat spelling">/${formatAccidentals(note)}</button>`
     ).join('');
     $$('[data-bass-pitch]').forEach(button => {
       const pitchIndex = Number(button.dataset.bassPitch);
@@ -846,14 +846,13 @@
   }
 
   function shortcutMarkup(item) {
-    if (!item.shortcut) return '';
-    return `<small class="shortcut-hint"><span>•</span><span>${escapeHtml(item.shortcut)}</span></small>`;
+    return '';
   }
 
   function renderExtensionButtons() {
     els.extensionGrid.innerHTML = extensionControls.map(item =>
       `<button class="modifier-btn modifier-content" data-control-kind="${item.kind}" data-control-value="${item.value}">` +
-        `<span class="modifier-label">${item.label}</span>${shortcutMarkup(item)}` +
+        `<span class="modifier-label">${item.label}</span>` +
       `</button>`
     ).join('');
     $$('[data-control-kind]').forEach(button => button.addEventListener('click', () => {
@@ -915,7 +914,7 @@
     els.diatonicGrid.innerHTML = scale.intervals.map((_,index) => {
       const chord = getDiatonicChord(index);
       return `<button class="diatonic-btn enharmonic-toggle" data-diatonic-index="${index}" title="Right-click or hold to switch sharp / flat spelling">` +
-        `<span>${chord.roman} · ⇧${index + 1}</span><strong>${formatAccidentals(chord.root + chord.suffix)}</strong>` +
+        `<span>${chord.roman}</span><strong>${formatAccidentals(chord.root + chord.suffix)}</strong>` +
       `</button>`;
     }).join('');
     $$('[data-diatonic-index]').forEach(button => {
