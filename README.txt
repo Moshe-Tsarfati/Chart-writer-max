@@ -22,3 +22,8 @@ Changes in this version:
 - Omit/custom and Base quality/display are open by default.
 
 V6 fix: iPhone keyboard no longer shrinks the app using visualViewport.height.
+
+V9 visual update
+----------------
+- Warm, distinct colors for bar, line, roots, bass notes, and diatonic chords.
+- Utilities use two rows with horizontal scrolling when needed.

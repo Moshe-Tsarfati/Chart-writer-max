@@ -330,3 +330,72 @@ body.keyboard-visible .app-shell{
 .version-badge{font-size:8px;line-height:1;padding:2px 4px;border:1px solid var(--line);border-radius:5px;color:var(--muted);font-weight:800;letter-spacing:.04em;flex:0 0 auto}
 .builder-head{display:none!important}
 #chartEditor{scroll-behavior:smooth}
+
+/* V9: restrained warm color coding and two-row Utilities. */
+:root{
+  --warm-bar:#9a6046;
+  --warm-line:#7f6b47;
+  --warm-root:#795044;
+  --warm-bass:#665943;
+  --warm-diatonic:#8a673d;
+  --warm-active:#c58a63;
+}
+
+/* Utilities become two compact rows and continue scrolling horizontally. */
+.utility-line{
+  display:grid!important;
+  grid-template-rows:repeat(2,34px)!important;
+  grid-auto-flow:column!important;
+  grid-auto-columns:max-content!important;
+  gap:5px!important;
+  width:max-content!important;
+  max-width:none!important;
+  overflow:visible!important;
+  padding-bottom:2px!important;
+}
+.utilities-section{
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:none;
+}
+.utilities-section::-webkit-scrollbar{display:none}
+.utility-line button{
+  min-width:52px!important;
+  height:34px!important;
+  min-height:34px!important;
+}
+
+/* Unique, muted warm colors for the high-frequency insertion controls. */
+#mobileBarBtn{
+  background:var(--warm-bar)!important;
+  border-color:#b87959!important;
+  color:#fff8f3!important;
+}
+#mobileNewLineBtn{
+  background:var(--warm-line)!important;
+  border-color:#9b855c!important;
+  color:#fffaf1!important;
+}
+.root-grid-mobile .root-btn{
+  background:var(--warm-root)!important;
+  border-color:#96685a!important;
+  color:#fff8f5!important;
+}
+.bass-grid-mobile .root-btn{
+  background:var(--warm-bass)!important;
+  border-color:#817158!important;
+  color:#fffaf1!important;
+}
+.diatonic-grid-mobile .diatonic-btn{
+  background:var(--warm-diatonic)!important;
+  border-color:#aa8250!important;
+  color:#fff9ef!important;
+}
+.root-grid-mobile .root-btn.active,
+.bass-grid-mobile .root-btn.active,
+.diatonic-grid-mobile .diatonic-btn.active{
+  background:var(--warm-active)!important;
+  border-color:#e0aa82!important;
+  color:#21140e!important;
+}

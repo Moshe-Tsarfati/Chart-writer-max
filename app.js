@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const APP_VERSION = 'V8';
+  const APP_VERSION = 'V9';
   let stableAppHeight = 0;
   let stableOrientation = window.innerWidth > window.innerHeight ? 'landscape' : 'portrait';
 
