@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const APP_VERSION = 'V10';
+  const APP_VERSION = 'V11';
   let stableAppHeight = 0;
   let stableOrientation = window.innerWidth > window.innerHeight ? 'landscape' : 'portrait';
 
@@ -21,7 +21,7 @@
     backupFolderHelp: $('#backupFolderHelp'), newProjectBtn: $('#newProjectBtn'), importBtn: $('#importBtn'), importInput: $('#importInput'),
     saveStatus: $('#saveStatus'), backupStatus: $('#backupStatus'), charCount: $('#charCount'), shortcutsBtn: $('#shortcutsBtn'), shortcutsDialog: $('#shortcutsDialog'),
     mobileNewLineBtn: $('#mobileNewLineBtn'), mobileBarBtn: $('#mobileBarBtn'), mobileDoubleBtn: $('#mobileDoubleBtn'), mobileRepeatBtn: $('#mobileRepeatBtn'), mobileBeatBtn: $('#mobileBeatBtn'), mobileSyncBtn: $('#mobileSyncBtn'),
-    forceGSharpMinorToggle: $('#forceGSharpMinorToggle'), toast: $('#toast')
+    forceGSharpMinorToggle: $('#forceGSharpMinorToggle'), lineTypeBtn: $('#lineTypeBtn'), viewModeBtn: $('#viewModeBtn'), viewModeDialog: $('#viewModeDialog'), closeViewModeBtn: $('#closeViewModeBtn'), viewSourceKey: $('#viewSourceKey'), viewTargetKey: $('#viewTargetKey'), viewModeStatus: $('#viewModeStatus'), viewChartContent: $('#viewChartContent'), chartSearchInput: $('#chartSearchInput'), chartSearchResults: $('#chartSearchResults'), chartSearchStatus: $('#chartSearchStatus'), connectChartsRootBtn: $('#connectChartsRootBtn'), toast: $('#toast')
   };
 
   const PROJECTS_KEY = 'chordChartFast.projects.v1';
@@ -34,6 +34,11 @@
   const HANDLE_DB_NAME = 'chordChartFast.fileHandles.v1';
   const HANDLE_STORE_NAME = 'handles';
   const BACKUP_DIRECTORY_KEY = 'backupDirectory';
+  const CHARTS_ROOT_DIRECTORY_KEY = 'chartsRootDirectory';
+  const CHART_META_START = '[[CHORDCHART_META_V2]]';
+  const CHART_META_END = '[[/CHORDCHART_META]]';
+  const LINE_TYPE_TEXT = 'text';
+  const LINE_TYPE_CHORD = 'chord';
 
   const chromaticSharp = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
   const chromaticFlat = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
@@ -123,7 +128,8 @@
     xHeld:false, xUsed:false,
     activeChord:null,
     directoryHandle:null, backupDirectoryHandle:null, defaultBackupDirectoryHandle:null, backupPermission:'none',
-    history:[''], historyIndex:0, dirty:false
+    history:[], historyIndex:0, dirty:false,
+    lineTypes:[LINE_TYPE_TEXT], previousEditorValue:'', sourceKeyIndex:0, sourceScaleType:'major', chartsRootHandle:null, chartLibrary:[]
   };
 
   function safeJsonParse(value, fallback) { try { return JSON.parse(value) ?? fallback; } catch { return fallback; } }
@@ -150,13 +156,68 @@
     els.saveStatus.style.color = 'var(--warn)';
   }
 
+
+  function getLines(content=els.editor.value) { return String(content).split('\n'); }
+  function normalizeLineTypes(content=els.editor.value, types=state.lineTypes) {
+    const count = getLines(content).length;
+    return Array.from({length:Math.max(1,count)}, (_,i) => types?.[i] === LINE_TYPE_CHORD ? LINE_TYPE_CHORD : LINE_TYPE_TEXT);
+  }
+  function lineIndexAtPosition(content, position) {
+    const value=String(content); const safe=Math.max(0,Math.min(Number(position)||0,value.length));
+    return value.slice(0,safe).split('\n').length-1;
+  }
+  function reconcileLineTypes(oldValue,newValue,oldTypes=state.lineTypes,defaultType=LINE_TYPE_TEXT) {
+    const oldLines=getLines(oldValue), newLines=getLines(newValue), normalized=normalizeLineTypes(oldValue,oldTypes);
+    let prefix=0; while(prefix<oldLines.length&&prefix<newLines.length&&oldLines[prefix]===newLines[prefix]) prefix++;
+    let suffix=0; while(suffix<oldLines.length-prefix&&suffix<newLines.length-prefix&&oldLines[oldLines.length-1-suffix]===newLines[newLines.length-1-suffix]) suffix++;
+    const oldMiddle=oldLines.length-prefix-suffix, newMiddle=newLines.length-prefix-suffix;
+    const next=normalized.slice(0,prefix); const safeDefault=defaultType===LINE_TYPE_CHORD?LINE_TYPE_CHORD:LINE_TYPE_TEXT;
+    for(let i=0;i<newMiddle;i++) next.push(oldMiddle===newMiddle&&normalized[prefix+i]?normalized[prefix+i]:(oldMiddle===1&&normalized[prefix]?normalized[prefix]:safeDefault));
+    if(suffix) next.push(...normalized.slice(normalized.length-suffix));
+    return normalizeLineTypes(newValue,next);
+  }
+  function selectedLineRange(){ const a=els.editor.selectionStart||0,b=els.editor.selectionEnd||a; return {first:lineIndexAtPosition(els.editor.value,a),last:lineIndexAtPosition(els.editor.value,b)}; }
+  function updateLineTypeButton(){
+    if(!els.lineTypeBtn)return; state.lineTypes=normalizeLineTypes(); const {first,last}=selectedLineRange(); const chosen=state.lineTypes.slice(first,last+1);
+    const allChord=chosen.length&&chosen.every(x=>x===LINE_TYPE_CHORD), allText=chosen.length&&chosen.every(x=>x===LINE_TYPE_TEXT);
+    els.lineTypeBtn.classList.toggle('chord',allChord); els.lineTypeBtn.classList.toggle('text',!allChord);
+    els.lineTypeBtn.textContent=allChord?'Line: Chords':(allText?'Line: Text':'Lines: Mixed');
+  }
+  function markLineRange(type,start,end=start,content=els.editor.value){
+    state.lineTypes=normalizeLineTypes(content,state.lineTypes); const first=lineIndexAtPosition(content,start),last=lineIndexAtPosition(content,Math.max(start,end));
+    for(let i=first;i<=last;i++) state.lineTypes[i]=type===LINE_TYPE_CHORD?LINE_TYPE_CHORD:LINE_TYPE_TEXT; updateLineTypeButton();
+  }
+  function toggleSelectedLinesType(){ const {first,last}=selectedLineRange(); state.lineTypes=normalizeLineTypes(); const make=state.lineTypes.slice(first,last+1).every(x=>x===LINE_TYPE_CHORD)?LINE_TYPE_TEXT:LINE_TYPE_CHORD; for(let i=first;i<=last;i++)state.lineTypes[i]=make; pushHistory(); markDirty(); scheduleSave(); updateLineTypeButton(); showToast(make===LINE_TYPE_CHORD?'Marked as chord row':'Marked as text row'); }
+  function parsePrefixedContent(content){ const visible=[],types=[]; getLines(content).forEach(line=>{ if(/^> ?/.test(line)){visible.push(line.replace(/^> ?/,''));types.push(LINE_TYPE_CHORD);}else{visible.push(line);types.push(LINE_TYPE_TEXT);} }); return {content:visible.join('\n'),lineTypes:types}; }
+  function serializePrefixedContent(content=els.editor.value,types=state.lineTypes){ const lines=getLines(content),t=normalizeLineTypes(content,types); return lines.map((line,i)=>t[i]===LINE_TYPE_CHORD&&line.length?`> ${line}`:line).join('\n'); }
+  function parseChartDocument(rawText){
+    const raw=String(rawText||'').replace(/^\uFEFF/,''); const a=raw.lastIndexOf(CHART_META_START),b=raw.lastIndexOf(CHART_META_END); const body=a>=0&&b>a?raw.slice(0,a):raw;
+    const metaText=a>=0&&b>a?raw.slice(a+CHART_META_START.length,b).trim():''; const parsed=parsePrefixedContent(body.replace(/\s+$/,'')); return {...parsed,meta:metaText?safeJsonParse(metaText,null):null};
+  }
+  function applyChartMetadata(meta){ state.sourceKeyIndex=Number.isInteger(meta?.sourceKeyIndex)&&keyPairs[meta.sourceKeyIndex]?meta.sourceKeyIndex:state.selectedKey; state.sourceScaleType=meta?.sourceScaleType&&scales[meta.sourceScaleType]?meta.sourceScaleType:els.scaleType.value; }
+  function getChartMetadataSnapshot(){ return {version:2,sourceKeyIndex:state.sourceKeyIndex,sourceMajor:keyPairs[state.sourceKeyIndex].major,sourceMinor:keyPairs[state.sourceKeyIndex].minor,sourceScaleType:state.sourceScaleType,format:'prefixed-chord-lines'}; }
+  function buildExportText(){ const body=serializePrefixedContent().replace(/\s+$/,''); return `${body}\n\n${CHART_META_START}\n${JSON.stringify(getChartMetadataSnapshot())}\n${CHART_META_END}\n`; }
+
+  function normalizeChordText(value){ const sup={'⁰':'0','¹':'1','²':'2','³':'3','⁴':'4','⁵':'5','⁶':'6','⁷':'7','⁸':'8','⁹':'9'}; return String(value).replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹]/g,c=>sup[c]||c).replaceAll('♯','#').replaceAll('♭','b').replace(/[Δ△]/g,'maj'); }
+  function isValidChordSuffix(suffix){ let n=normalizeChordText(suffix||''); const atoms=/^(?:mMaj7|maj13|maj11|maj9|maj7#5|maj7|m7b5|m7|M7|M|dim7|dim|aug|sus11|sus9|sus4|sus2|sus|add13|add11|add9|add6|add4|add2|alt|ø7|ø|°7|°|\+5|\+|13|11|9|7|6\/9|69|6|5|b13|#13|b11|#11|b9|#9|b5|#5|no7|no5|no3|m)*$/; const groups=[...n.matchAll(/\(([^()]*)\)/g)]; for(const g of groups){const parts=g[1].split(',').filter(Boolean);if(!parts.length||parts.some(x=>!atoms.test(x)))return false;} n=n.replace(/\([^()]*\)/g,''); return atoms.test(n); }
+  function parseChordToken(token){ if(!token)return null; let core=String(token).trim(); const tm=core.match(/((?:['’′`*]+|\.{2,}|…+)+)$/),timing=tm?tm[1]:''; if(tm)core=core.slice(0,-timing.length); const bm=core.match(/\/([A-G](?:[#b♯♭])?)$/),bass=bm?bm[1]:''; if(bm)core=core.slice(0,-bm[0].length); const rm=core.match(/^([A-G](?:[#b♯♭])?)(.*)$/); if(!rm||!isValidChordSuffix(rm[2]))return null; return {root:rm[1],suffix:rm[2],bass,timing}; }
+  function stripNotationEdges(token){ const leading=token.match(/^[|:]+/)?.[0]||'',rest=token.slice(leading.length),trailing=rest.match(/[|:]+$/)?.[0]||''; return {leading,core:rest.slice(0,trailing?rest.length-trailing.length:rest.length),trailing}; }
+  function transposeChordToken(token,semitones,targetKeyIndex){ const c=parseChordToken(token); if(!c)return token; const r=noteForPitch((noteIndex(c.root)+semitones+120)%12,targetKeyIndex); let out=formatAccidentals(r)+c.suffix; if(c.bass)out+=`/${formatAccidentals(noteForPitch((noteIndex(c.bass)+semitones+120)%12,targetKeyIndex))}`; return out+(c.timing||''); }
+  function transposeChordLine(line,semitones,targetKeyIndex){ return String(line).replace(/\S+/g,t=>{const e=stripNotationEdges(t);return parseChordToken(e.core)?e.leading+transposeChordToken(e.core,semitones,targetKeyIndex)+e.trailing:t;}); }
+  function transposeChart(content,source,target,types=state.lineTypes){ if(source===target)return content; const sem=(noteIndex(keyPairs[target].major)-noteIndex(keyPairs[source].major)+12)%12,t=normalizeLineTypes(content,types); return getLines(content).map((line,i)=>t[i]===LINE_TYPE_CHORD?transposeChordLine(line,sem,target):line).join('\n'); }
+  function populateViewScaleMenus(){ const opts=keyPairs.map((p,i)=>`<option value="${i}">${p.major} / ${p.minor}</option>`).join(''); els.viewSourceKey.innerHTML=opts; els.viewTargetKey.innerHTML=`<option value="original">Original</option>${opts}`; }
+  function renderViewMode(){ const source=Number(els.viewSourceKey.value),target=els.viewTargetKey.value==='original'?source:Number(els.viewTargetKey.value); els.viewChartContent.textContent=transposeChart(els.editor.value,source,target); const a=`${keyPairs[source].major} / ${keyPairs[source].minor}`,b=`${keyPairs[target].major} / ${keyPairs[target].minor}`; els.viewModeStatus.textContent=source===target?`Read-only · original ${a}`:`Read-only · ${a} → ${b}`; }
+  function openViewMode(){ populateViewScaleMenus(); els.viewSourceKey.value=String(state.sourceKeyIndex); els.viewTargetKey.value='original'; renderViewMode(); els.viewModeDialog.showModal(); }
+  function closeViewMode(){ if(els.viewModeDialog?.open)els.viewModeDialog.close(); }
+
   function saveCurrentProject({backup=false}={}) {
     const project = {
       id: state.currentProjectId,
       name: currentName(),
       content: els.editor.value,
       updatedAt: new Date().toISOString(),
-      settings: getSettingsSnapshot()
+      settings: getSettingsSnapshot(),
+      lineTypes: normalizeLineTypes(), sourceKeyIndex: state.sourceKeyIndex, sourceScaleType: state.sourceScaleType
     };
     const projects = getProjects();
     projects[project.id] = project;
@@ -180,6 +241,10 @@
     state.currentProjectId = project.id;
     els.projectName.value = project.name === 'untitled' ? '' : project.name;
     els.editor.value = project.content || '';
+    state.lineTypes = normalizeLineTypes(els.editor.value, project.lineTypes || []);
+    state.sourceKeyIndex = Number.isInteger(project.sourceKeyIndex) ? project.sourceKeyIndex : state.selectedKey;
+    state.sourceScaleType = project.sourceScaleType || els.scaleType.value;
+    state.previousEditorValue = els.editor.value;
     applySettings(project.settings || {});
     resetHistory(els.editor.value);
     updateCounts();
@@ -207,6 +272,7 @@
     state.currentProjectId = crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
     els.projectName.value = '';
     els.editor.value = '';
+    state.lineTypes = [LINE_TYPE_TEXT]; state.previousEditorValue=''; state.sourceKeyIndex=state.selectedKey; state.sourceScaleType=els.scaleType.value;
     clearChord();
     resetHistory('');
     updateCounts();
@@ -230,12 +296,12 @@
   }
   function saveTxt() {
     saveCurrentProject();
-    downloadText(els.editor.value, `${safeName(currentName())}.txt`);
+    downloadText(buildExportText(), `${safeName(currentName())}.txt`);
     showToast('TXT saved');
   }
   function downloadBackup() {
     saveCurrentProject({backup:true});
-    downloadText(els.editor.value, `${safeName(currentName())}_backup.txt`);
+    downloadText(buildExportText(), `${safeName(currentName())}_backup.txt`);
     showToast('Backup TXT downloaded');
   }
 
@@ -456,7 +522,7 @@
 
     try {
       const defaultFolder = await ensureDefaultBackupFolder();
-      if (await writeTextToDirectory(defaultFolder, filename, els.editor.value)) destinations.push('private /backups');
+      if (await writeTextToDirectory(defaultFolder, filename, buildExportText())) destinations.push('private /backups');
     } catch (error) {
       console.warn('Default file backup failed:', error);
     }
@@ -464,7 +530,7 @@
     if (state.directoryHandle) {
       try {
         const externalFolder = await ensureExternalBackupFolder(false);
-        if (await writeTextToDirectory(externalFolder, filename, els.editor.value)) destinations.push(`${state.directoryHandle.name}/backups`);
+        if (await writeTextToDirectory(externalFolder, filename, buildExportText())) destinations.push(`${state.directoryHandle.name}/backups`);
       } catch (error) {
         console.warn('External file backup failed:', error);
         state.backupPermission = 'prompt';
@@ -598,6 +664,14 @@
     return getRootEnharmonicPreferences()[String(pitchIndex)] || note;
   }
 
+  function noteForPitch(pitchIndex, keyIndex=state.selectedKey, fallbackPreference='') {
+    const pitch=((pitchIndex%12)+12)%12;
+    const stored=getRootEnharmonicPreferences()[String(pitch)];
+    if(stored)return stored;
+    const prefer=fallbackPreference||keyPairs[keyIndex]?.prefer||'sharp';
+    return prefer==='flat'?chromaticFlat[pitch]:chromaticSharp[pitch];
+  }
+
   function toggleGlobalPitchSpelling(pitchIndex, sourceLabel='Note') {
     const currentNote = getGlobalPitchNotes()[pitchIndex];
     const alternative = enharmonicAlternative(currentNote);
@@ -611,6 +685,7 @@
     localStorage.setItem(ROOT_ENHARMONIC_KEY, JSON.stringify(preferences));
     renderRoots();
     renderDiatonic();
+    if (els.viewModeDialog?.open) renderViewMode();
     showToast(`${sourceLabel} spelling changed globally to ${alternative}`);
   }
 
@@ -677,6 +752,17 @@
       }
       onPrimary();
     });
+  }
+
+
+  function bindPrimaryDoubleAndLongPress(button,onPrimary,onDouble,onLongPress){
+    let tapTimer=null,lastTap=0,longTimer=null,longPressed=false,startX=0,startY=0;
+    button.addEventListener('contextmenu',e=>{e.preventDefault();onLongPress?.();});
+    button.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse')return;startX=e.clientX;startY=e.clientY;longPressed=false;clearTimeout(longTimer);longTimer=setTimeout(()=>{longPressed=true;clearTimeout(tapTimer);lastTap=0;onLongPress?.();},600);});
+    const cancel=()=>{clearTimeout(longTimer);longTimer=null;};
+    button.addEventListener('pointermove',e=>{if(Math.hypot(e.clientX-startX,e.clientY-startY)>10)cancel();});
+    button.addEventListener('pointerup',cancel);button.addEventListener('pointercancel',cancel);button.addEventListener('pointerleave',cancel);
+    button.addEventListener('click',e=>{if(longPressed){e.preventDefault();longPressed=false;return;}if(!onDouble){onPrimary();return;}const now=Date.now();if(now-lastTap<310){clearTimeout(tapTimer);tapTimer=null;lastTap=0;onDouble();return;}lastTap=now;clearTimeout(tapTimer);tapTimer=setTimeout(()=>{onPrimary();tapTimer=null;},315);});
   }
 
   function formatAccidentals(text) {
@@ -804,7 +890,7 @@
       `<button class="key-btn ${index===state.selectedKey?'active':''}" data-key-index="${index}">${key.major} / ${key.minor}</button>`
     ).join('');
     $$('[data-key-index]').forEach(button => button.addEventListener('click', () => {
-      state.selectedKey = Number(button.dataset.keyIndex);
+      state.selectedKey = Number(button.dataset.keyIndex); state.sourceKeyIndex = state.selectedKey; state.sourceScaleType = els.scaleType.value;
       renderKeys();
       renderRoots();
       renderDiatonic();
@@ -948,47 +1034,30 @@
   }
 
   function getBaseDiatonicChord(index) {
-    const pair = keyPairs[state.selectedKey];
-    const scale = scales[els.scaleType.value];
-    const tonicName = els.scaleType.value === 'major' ? pair.major : pair.minor.replace(/m$/,'');
-    const tonicIndex = noteIndex(tonicName);
-    const notes = preferredChromatic();
-    const suffixes = [...scale.triads];
-    if (suffixes[6] === 'dim') suffixes[6] = 'm7b5';
-    return {
-      root: notes[(tonicIndex + scale.intervals[index]) % 12],
-      suffix: suffixes[index],
-      roman: scale.roman[index]
-    };
+    const pair=keyPairs[state.selectedKey],scale=scales[els.scaleType.value];
+    const tonicName=els.scaleType.value==='major'?pair.major:pair.minor.replace(/m$/,'');
+    const tonicIndex=noteIndex(tonicName),notes=preferredChromatic(),suffixes=[...scale.triads];
+    if(suffixes[6]==='dim')suffixes[6]='m7b5';
+    return {root:notes[(tonicIndex+scale.intervals[index])%12],suffix:suffixes[index],roman:scale.roman[index]};
   }
-
-  function getDiatonicChord(index) {
-    const chord = getBaseDiatonicChord(index);
-    return {...chord, root:getGlobalPreferredNote(chord.root)};
+  function getDiatonicChord(index){const c=getBaseDiatonicChord(index);return {...c,root:getGlobalPreferredNote(c.root)};}
+  function toggleDiatonicSpelling(index){toggleGlobalPitchSpelling(noteIndex(getBaseDiatonicChord(index).root),'Diatonic');}
+  function getDiatonicDoubleVariant(index){
+    if(els.scaleType.value!=='major')return null;
+    const tonic=noteIndex(keyPairs[state.selectedKey].major),pitch=d=>(tonic+scales.major.intervals[d])%12;
+    let root=-1,bass=-1,suffix='',fallback='';
+    if(index===4){root=pitch(2);bass=pitch(4);suffix='m';}
+    else if(index===0){root=pitch(5);bass=pitch(0);suffix='m';}
+    else if(index===2){root=pitch(2);bass=(root+4)%12;fallback='flat';}
+    else if(index===5){root=pitch(5);bass=(root+4)%12;fallback='sharp';}
+    else return null;
+    return {root:noteForPitch(root,state.selectedKey),suffix,bass:noteForPitch(bass,state.selectedKey,fallback)};
   }
-
-  function toggleDiatonicSpelling(index) {
-    const chord = getBaseDiatonicChord(index);
-    const pitchIndex = noteIndex(chord.root);
-    toggleGlobalPitchSpelling(pitchIndex, 'Diatonic');
-  }
-
-  function renderDiatonic() {
-    const scale = scales[els.scaleType.value];
-    els.diatonicGrid.innerHTML = scale.intervals.map((_,index) => {
-      const chord = getDiatonicChord(index);
-      return `<button class="diatonic-btn enharmonic-toggle" data-diatonic-index="${index}" title="Right-click or hold to switch sharp / flat spelling">` +
-        `<strong>${formatAccidentals(chord.root + chord.suffix)}</strong>` +
-      `</button>`;
-    }).join('');
-    $$('[data-diatonic-index]').forEach(button => {
-      const index = Number(button.dataset.diatonicIndex);
-      bindPrimaryAndLongPress(
-        button,
-        () => insertDiatonicChord(index),
-        () => toggleDiatonicSpelling(index)
-      );
-    });
+  function insertDiatonicVariant(index){const v=getDiatonicDoubleVariant(index);if(!v)return insertDiatonicChord(index);applySuffixToState(v.root,v.suffix);state.slashBass=v.bass;insertNewActiveChord();}
+  function renderDiatonic(){
+    const scale=scales[els.scaleType.value];
+    els.diatonicGrid.innerHTML=scale.intervals.map((_,index)=>{const c=getDiatonicChord(index),v=getDiatonicDoubleVariant(index);const title=v?`Tap ${c.root+c.suffix}; double tap ${v.root}${v.suffix}/${v.bass}; hold to change spelling`:'Hold to change spelling';return `<button class="diatonic-btn enharmonic-toggle" data-diatonic-index="${index}" title="${escapeHtml(title)}"><strong>${formatAccidentals(c.root+c.suffix)}</strong></button>`;}).join('');
+    $$('[data-diatonic-index]').forEach(button=>{const index=Number(button.dataset.diatonicIndex);bindPrimaryDoubleAndLongPress(button,()=>insertDiatonicChord(index),getDiatonicDoubleVariant(index)?()=>insertDiatonicVariant(index):null,()=>toggleDiatonicSpelling(index));});
   }
 
   function applySuffixToState(root, suffix) {
@@ -1045,14 +1114,14 @@
   }
 
   function commitEditorValue(value, cursorStart, cursorEnd=cursorStart) {
-    els.editor.value = value;
-    els.editor.setSelectionRange(cursorStart, cursorEnd);
-    if (state.mode === 'text') els.editor.focus({preventScroll:true});
-    requestAnimationFrame(ensureEditorCaretVisible);
-    pushHistory();
-    updateCounts();
-    markDirty();
-    scheduleSave();
+    const oldValue=els.editor.value;
+    state.lineTypes=reconcileLineTypes(oldValue,value,state.lineTypes,state.mode==='chord'?LINE_TYPE_CHORD:LINE_TYPE_TEXT);
+    els.editor.value=value;
+    if(state.mode==='chord') markLineRange(LINE_TYPE_CHORD,cursorStart,cursorEnd,value);
+    state.previousEditorValue=value;
+    els.editor.setSelectionRange(cursorStart,cursorEnd);
+    if(state.mode==='text')els.editor.focus({preventScroll:true});
+    requestAnimationFrame(ensureEditorCaretVisible); pushHistory(); updateCounts(); markDirty(); scheduleSave(); updateLineTypeButton();
   }
 
   function insertAtCursor(text, {clearActive=true}={}) {
@@ -1504,40 +1573,12 @@
     return false;
   }
 
-  function resetHistory(value) {
-    state.history = [value];
-    state.historyIndex = 0;
-  }
-
-  function pushHistory() {
-    const value = els.editor.value;
-    if (state.history[state.historyIndex] === value) return;
-    state.history = state.history.slice(0, state.historyIndex + 1);
-    state.history.push(value);
-    if (state.history.length > 120) state.history.shift();
-    state.historyIndex = state.history.length - 1;
-  }
-
-  function undo() {
-    if (state.historyIndex > 0) {
-      state.historyIndex--;
-      els.editor.value = state.history[state.historyIndex];
-      unlinkActiveChord();
-      updateCounts();
-      requestAnimationFrame(ensureEditorCaretVisible);
-      markDirty();
-    }
-  }
-
-  function redo() {
-    if (state.historyIndex < state.history.length - 1) {
-      state.historyIndex++;
-      els.editor.value = state.history[state.historyIndex];
-      unlinkActiveChord();
-      updateCounts();
-      markDirty();
-    }
-  }
+  function historySnapshot(){return {value:els.editor.value,lineTypes:[...normalizeLineTypes()],sourceKeyIndex:state.sourceKeyIndex,sourceScaleType:state.sourceScaleType};}
+  function resetHistory(value){state.history=[{value,lineTypes:[...normalizeLineTypes(value,state.lineTypes)],sourceKeyIndex:state.sourceKeyIndex,sourceScaleType:state.sourceScaleType}];state.historyIndex=0;}
+  function pushHistory(){const snap=historySnapshot(),cur=state.history[state.historyIndex];if(cur&&cur.value===snap.value&&JSON.stringify(cur.lineTypes)===JSON.stringify(snap.lineTypes))return;state.history=state.history.slice(0,state.historyIndex+1);state.history.push(snap);if(state.history.length>120)state.history.shift();state.historyIndex=state.history.length-1;}
+  function restoreHistory(snap){els.editor.value=snap.value;state.lineTypes=normalizeLineTypes(snap.value,snap.lineTypes);state.sourceKeyIndex=snap.sourceKeyIndex??state.sourceKeyIndex;state.sourceScaleType=snap.sourceScaleType||state.sourceScaleType;state.previousEditorValue=snap.value;unlinkActiveChord();updateCounts();updateLineTypeButton();requestAnimationFrame(ensureEditorCaretVisible);markDirty();}
+  function undo(){if(state.historyIndex>0){state.historyIndex--;restoreHistory(state.history[state.historyIndex]);}}
+  function redo(){if(state.historyIndex<state.history.length-1){state.historyIndex++;restoreHistory(state.history[state.historyIndex]);}}
 
   function updateCounts() {
     els.charCount.textContent = `${els.editor.value.length.toLocaleString()} characters`;
@@ -1576,6 +1617,21 @@
     requestAnimationFrame(ensureEditorCaretVisible);
   }
 
+
+  async function loadHostedChartIndex(){
+    try{const response=await fetch('./charts/index.json',{cache:'no-store'});if(!response.ok)return false;const data=await response.json();state.chartLibrary=Array.isArray(data)?data:(data.charts||[]);els.chartSearchStatus.textContent=`${state.chartLibrary.length} hosted chart(s) available`;renderChartSearchResults();return true;}catch{return false;}
+  }
+  async function connectChartsRoot(){
+    if(!window.showDirectoryPicker){els.chartSearchStatus.textContent='On iPhone, add charts/index.json to the hosted charts folder.';showToast('Folder browsing is unavailable in iPhone Safari',true);return;}
+    try{state.chartsRootHandle=await window.showDirectoryPicker({mode:'read'});const charts=await state.chartsRootHandle.getDirectoryHandle('charts');state.chartLibrary=[];for await(const [name,handle] of charts.entries()){if(handle.kind==='file'&&/\.txt$/i.test(name))state.chartLibrary.push({name,handle});}els.chartSearchStatus.textContent=`${state.chartLibrary.length} chart(s) found`;renderChartSearchResults();}catch(e){if(e?.name!=='AbortError')showToast('Could not open charts folder',true);}
+  }
+  function renderChartSearchResults(){
+    if(!els.chartSearchResults)return;const q=(els.chartSearchInput?.value||'').trim().toLowerCase();const list=state.chartLibrary.filter(item=>(item.name||item.title||item.path||'').toLowerCase().includes(q)).slice(0,40);els.chartSearchResults.innerHTML=list.map((item,i)=>`<button class="chart-search-result" data-chart-index="${i}"><span>${escapeHtml(item.title||item.name||item.path)}</span><small>Open</small></button>`).join('');els.chartSearchResults.classList.toggle('hidden',!q&&!list.length);$$('[data-chart-index]').forEach((button,i)=>button.addEventListener('click',()=>openChartLibraryItem(list[i])));
+  }
+  async function openChartLibraryItem(item){
+    try{let text,name=item.title||item.name||item.path||'chart.txt';if(item.handle){text=await (await item.handle.getFile()).text();}else{const path=item.path||item.file||item.name;const response=await fetch(path.startsWith('charts/')?`./${path}`:`./charts/${path}`);if(!response.ok)throw new Error('Not found');text=await response.text();}const parsed=parseChartDocument(text);saveCurrentProject();state.currentProjectId=crypto.randomUUID?crypto.randomUUID():String(Date.now());els.projectName.value=name.replace(/\.txt$/i,'');els.editor.value=parsed.content;state.lineTypes=normalizeLineTypes(parsed.content,parsed.lineTypes);applyChartMetadata(parsed.meta);state.previousEditorValue=els.editor.value;clearChord();resetHistory(els.editor.value);updateCounts();updateLineTypeButton();saveCurrentProject();els.chartSearchResults.classList.add('hidden');document.getElementById('projectDrawer')?.classList.add('hidden');showToast('Chart opened');}catch(e){console.error(e);showToast('Could not open chart',true);}
+  }
+
   function bindEvents() {
     els.textModeBtn.addEventListener('click', () => setMode('text'));
     els.chordModeBtn.addEventListener('click', () => setMode('chord'));
@@ -1593,6 +1649,13 @@
     els.insertChordBtn.addEventListener('click', finishOrInsertChord);
     els.clearChordBtn.addEventListener('click', clearChord);
     els.newProjectBtn.addEventListener('click', newProject);
+    els.lineTypeBtn?.addEventListener('click', toggleSelectedLinesType);
+    els.viewModeBtn?.addEventListener('click', openViewMode);
+    els.closeViewModeBtn?.addEventListener('click', closeViewMode);
+    els.viewSourceKey?.addEventListener('change', renderViewMode);
+    els.viewTargetKey?.addEventListener('change', renderViewMode);
+    els.connectChartsRootBtn?.addEventListener('click', connectChartsRoot);
+    els.chartSearchInput?.addEventListener('input', renderChartSearchResults);
     els.saveTxtBtn.addEventListener('click', saveTxt);
     els.downloadBackupBtn.addEventListener('click', downloadBackup);
     els.chooseBackupFolderBtn.addEventListener('click', chooseBackupFolder);
@@ -1612,6 +1675,10 @@
       updateBackupFolderUI();
     });
     els.editor.addEventListener('input', () => {
+      state.lineTypes = reconcileLineTypes(state.previousEditorValue, els.editor.value, state.lineTypes, state.mode === 'chord' ? LINE_TYPE_CHORD : LINE_TYPE_TEXT);
+      if (state.mode === 'chord') markLineRange(LINE_TYPE_CHORD, els.editor.selectionStart, els.editor.selectionEnd);
+      state.previousEditorValue = els.editor.value;
+      updateLineTypeButton();
       if (state.activeChord) {
         const active = state.activeChord;
         const chordStillMatches = active.start >= 0 && active.end <= els.editor.value.length &&
@@ -1649,6 +1716,8 @@
       els.editor.inputMode = 'text';
       els.editor.setAttribute('aria-readonly', 'false');
     });
+    els.editor.addEventListener('keyup', updateLineTypeButton);
+    els.editor.addEventListener('select', updateLineTypeButton);
     els.editor.addEventListener('click', () => {
       if (!validActiveChord()) unlinkActiveChord();
       if (state.mode === 'text') els.editor.focus({preventScroll:true});
@@ -1719,7 +1788,8 @@
       saveCurrentProject();
       state.currentProjectId = crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
       els.projectName.value = file.name.replace(/\.txt$/i,'');
-      els.editor.value = await file.text();
+      const parsed = parseChartDocument(await file.text());
+      els.editor.value = parsed.content; state.lineTypes = normalizeLineTypes(parsed.content, parsed.lineTypes); applyChartMetadata(parsed.meta); state.previousEditorValue=els.editor.value;
       clearChord();
       resetHistory(els.editor.value);
       updateCounts();
@@ -1792,12 +1862,12 @@
       state.currentProjectId = currentId;
       const project = projects[currentId];
       els.projectName.value = project.name === 'untitled' ? '' : project.name;
-      els.editor.value = project.content || '';
+      els.editor.value = project.content || ''; state.lineTypes=normalizeLineTypes(els.editor.value,project.lineTypes||[]); state.sourceKeyIndex=Number.isInteger(project.sourceKeyIndex)?project.sourceKeyIndex:state.selectedKey; state.sourceScaleType=project.sourceScaleType||els.scaleType.value; state.previousEditorValue=els.editor.value;
       applySettings(project.settings || globalSettings);
     }
 
     updateCounts();
-    resetHistory(els.editor.value);
+    state.lineTypes=normalizeLineTypes(els.editor.value,state.lineTypes); state.previousEditorValue=els.editor.value; resetHistory(els.editor.value); updateLineTypeButton();
     refreshProjectSelect();
     setMode('text');
     saveCurrentProject();
@@ -1806,6 +1876,7 @@
     state.backupDirectoryHandle = null;
     state.backupPermission = 'none';
     updateBackupFolderUI();
+    loadHostedChartIndex();
 
     setInterval(async () => {
       saveCurrentProject({backup:true});

@@ -407,3 +407,25 @@ body.keyboard-visible .app-shell{
 .drawer-setting input{width:18px;height:18px;flex:0 0 auto;accent-color:var(--accent)}
 .drawer-version{padding-top:7px;border-top:1px solid var(--line);color:var(--muted);font-size:10px;text-align:center;letter-spacing:.02em}
 .drawer-version strong{color:var(--accent);font-size:11px}
+
+/* V11 structured charts and mobile view mode */
+.line-type-btn{min-height:28px;padding:2px 7px;font-size:10px;white-space:nowrap;border-color:#526177}
+.line-type-btn.text{background:#2a3443;color:#c7d0dc}
+.line-type-btn.chord{background:#6f5740;color:#fff2df;border-color:#8b6b4c}
+.chart-search-mobile{display:grid;gap:6px;padding-top:4px;border-top:1px solid var(--line)}
+.chart-search-mobile small{font-size:10px;color:var(--muted);line-height:1.3}
+.chart-search-results{max-height:180px;overflow:auto;border:1px solid var(--line);border-radius:10px;background:#0b111a;padding:4px}
+.chart-search-result{display:flex;width:100%;justify-content:space-between;text-align:left;gap:8px;margin:2px 0;background:#182231}
+.chart-search-result small{opacity:.75}
+.view-mode-dialog{width:100vw;max-width:none;height:100dvh;max-height:none;margin:0;padding:0;border:0;border-radius:0;background:#090d14;color:var(--text)}
+.view-mode-dialog::backdrop{background:#090d14}
+.view-mode-shell{height:100%;display:grid;grid-template-rows:auto auto 1fr;padding-top:var(--safe-top)}
+.view-mode-toolbar{display:flex;align-items:flex-end;gap:8px;padding:8px;border-bottom:1px solid var(--line);background:#101722}
+.view-mode-scale-row{display:grid;grid-template-columns:1fr 1fr;gap:6px;flex:1;min-width:0}
+.view-mode-scale-row label{display:grid;gap:3px;font-size:10px;color:var(--muted)}
+.view-mode-scale-row select{width:100%;min-width:0;height:34px;background:#0a1018;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:3px 5px}
+.view-close{min-width:38px;height:34px;padding:0;font-size:22px}
+.view-mode-status{padding:5px 10px;border-bottom:1px solid var(--line);font-size:10px;color:var(--muted)}
+.view-chart-content{margin:0;padding:16px 13px calc(20px + var(--safe-bottom));overflow:auto;white-space:pre-wrap;word-break:normal;direction:ltr;text-align:left;font:16px/1.65 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--text)}
+.editor-head{min-width:0}.editor-actions{margin-left:auto;flex-shrink:0}
+@media(max-width:390px){.editor-hint{display:none}.line-type-btn{font-size:9px;padding-inline:5px}}

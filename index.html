@@ -39,20 +39,28 @@
         <button id="newProjectBtn">New</button>
         <button id="importBtn">Import</button>
         <input id="importInput" type="file" accept="text/plain,.txt" hidden />
+        <button id="viewModeBtn">View mode</button>
         <button id="saveTxtBtn" class="primary">Save TXT</button>
         <button id="downloadBackupBtn">Backup TXT</button>
       </div>
       <input id="backupFolderInput" type="hidden" />
       <button id="chooseBackupFolderBtn" hidden></button><button id="clearBackupFolderBtn" hidden></button><small id="backupFolderHelp" hidden></small>
       <label class="drawer-setting"><input id="forceGSharpMinorToggle" type="checkbox" checked /><span>Ab/G# double-tap always inserts G#m</span></label>
+      <div class="chart-search-mobile">
+        <label class="field"><span>Search charts</span><input id="chartSearchInput" type="search" placeholder="Search root/charts…" autocomplete="off" /></label>
+        <div id="chartSearchResults" class="chart-search-results hidden"></div>
+        <small id="chartSearchStatus">Uses charts/index.json when hosted. Directory access is used where supported.</small>
+        <button id="connectChartsRootBtn" type="button">Connect root</button>
+      </div>
       <div class="drawer-status"><span id="saveStatus">Saved locally</span><span id="backupStatus">Private /backups autosave every 60 seconds.</span></div>
-      <div class="drawer-version">ChordChart Fast <strong>V10</strong></div>
+      <div class="drawer-version">ChordChart Fast <strong>V11</strong></div>
     </section>
 
     <main class="workspace">
       <section class="editor-panel">
         <div class="editor-head">
           <span id="editorModeBadge" class="editor-mode-badge">TEXT MODE</span>
+          <button id="lineTypeBtn" class="line-type-btn text" type="button">Line: Text</button>
           <span id="modeLabel" class="sr-only">TEXT</span><span id="modeHint" class="editor-hint">Tap Text to type</span>
           <div class="editor-actions">
             <button data-editor-action="undo" class="mini">↶</button>
@@ -135,6 +143,21 @@
       </aside>
     </main>
   </div>
+
+
+  <dialog id="viewModeDialog" class="view-mode-dialog">
+    <div class="view-mode-shell">
+      <div class="view-mode-toolbar">
+        <div class="view-mode-scale-row">
+          <label>From<select id="viewSourceKey"></select></label>
+          <label>To<select id="viewTargetKey"></select></label>
+        </div>
+        <button id="closeViewModeBtn" class="view-close" aria-label="Close view mode">×</button>
+      </div>
+      <div id="viewModeStatus" class="view-mode-status">Read-only</div>
+      <pre id="viewChartContent" class="view-chart-content" tabindex="0"></pre>
+    </div>
+  </dialog>
 
   <button id="shortcutsBtn" hidden></button>
   <dialog id="shortcutsDialog"><form method="dialog"><button value="close">Close</button></form></dialog>

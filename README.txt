@@ -1,31 +1,16 @@
-ChordChart Fast — iPhone PWA text-mode fix
+ChordChart Fast iPhone PWA V11
 
-Replace these files in the GitHub Pages repository:
-- index.html
-- styles.css
-- app.js
-- sw.js
+New structured chart format:
+- Lines created/marked in Chord mode are saved with a gentle "> " prefix.
+- The prefix is hidden inside the editor and View mode.
+- View mode transposes only recognized chords on marked chord rows.
+- Roots, slash basses, beat marks, superscripts, ellipses, bars and repeat notation are supported.
+- Global sharp/flat spelling preferences apply to modulation.
 
-Important: sw.js was versioned and changed to network-first for the main app files so GitHub Pages updates do not remain trapped behind an old offline cache.
+Hosted chart search on iPhone:
+1. Put structured TXT chart files in the repository's /charts folder.
+2. Add each file to charts/index.json, for example:
+   {"charts":[{"title":"Artist - Song","path":"Artist - Song.txt"}]}
+3. Deploy with GitHub Pages.
 
-After GitHub Pages finishes deploying:
-1. Fully close the Home Screen app from the iPhone app switcher.
-2. Open it again.
-3. Tap Text, then tap the editor once to open the keyboard.
-
-Changes in this version:
-- Uses visualViewport height while the iPhone keyboard is open.
-- Text editor fills the whole visible area above the keyboard.
-- Text button arms editing; one editor tap opens the keyboard reliably.
-- Chord insertions do not focus/scroll the readonly editor.
-- Utilities and Diatonic headings removed.
-- Omit/custom and Base quality/display are open by default.
-
-V6 fix: iPhone keyboard no longer shrinks the app using visualViewport.height.
-
-V9 visual update
-----------------
-- Warm, distinct colors for bar, line, roots, bass notes, and diatonic chords.
-- Utilities use two rows with horizontal scrolling when needed.
-
-V10: LTR editor, global enharmonic spelling, optional G#m double-tap exception.
+Where supported, Connect root can read root/charts directly. iPhone Safari normally uses charts/index.json instead.
